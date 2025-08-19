@@ -8,16 +8,16 @@ Gem::Specification.new do |spec|
   spec.authors = ["Alex Shapalov"]
   spec.email = ["shapalov@gmail.com"]
 
-  spec.summary = "Ruby client for ActiveAgent application monitoring and error tracking"
-  spec.description = "A comprehensive Ruby client for ActiveAgent that provides error tracking, performance monitoring, and application observability for Rails applications."
-  spec.homepage = "https://github.com/activeagent/active_agent-client"
+  spec.summary = "Ruby client for FixRabbit application monitoring and error tracking"
+  spec.description = "A comprehensive Ruby client for FixRabbit that provides error tracking, performance monitoring, and application observability for Rails applications."
+  spec.homepage = "https://github.com/bugrabbit/active_agent-client"
   spec.required_ruby_version = ">= 3.1.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
 
   spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "https://github.com/activeagent/active_agent-client"
-  spec.metadata["changelog_uri"] = "https://github.com/activeagent/active_agent-client/blob/main/CHANGELOG.md"
+  spec.metadata["source_code_uri"] = "https://github.com/bugrabbit/active_agent-client"
+  spec.metadata["changelog_uri"] = "https://github.com/bugrabbit/active_agent-client/blob/main/CHANGELOG.md"
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.

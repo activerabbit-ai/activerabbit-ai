@@ -1,5 +1,8 @@
 # frozen_string_literal: true
 
+require "socket"
+require "logger"
+
 module ActiveAgent
   module Client
     class Configuration
@@ -13,7 +16,7 @@ module ActiveAgent
       attr_accessor :before_send_event, :before_send_exception
 
       def initialize
-        @api_url = ENV.fetch("ACTIVE_AGENT_API_URL", "https://api.activeagent.com")
+        @api_url = ENV.fetch("ACTIVE_AGENT_API_URL", "https://api.activerabbit.com")
         @api_key = ENV["ACTIVE_AGENT_API_KEY"]
         @project_id = ENV["ACTIVE_AGENT_PROJECT_ID"]
         @environment = ENV.fetch("ACTIVE_AGENT_ENVIRONMENT", detect_environment)
@@ -67,7 +70,11 @@ module ActiveAgent
       end
 
       def valid?
-        api_key && api_key.length > 0 && api_url && api_url.length > 0
+        return false unless api_key
+        return false if api_key.empty?
+        return false unless api_url
+        return false if api_url.empty?
+        true
       end
 
       def api_endpoint(path)

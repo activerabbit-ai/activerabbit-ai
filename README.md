@@ -1,6 +1,6 @@
 # ActiveAgent::Client
 
-Ruby client library for ActiveAgent application monitoring and error tracking. This gem provides comprehensive monitoring capabilities including error tracking, performance monitoring, N+1 query detection, and more for Ruby applications, with special focus on Rails integration.
+Ruby client library for ActiveRabbit application monitoring and error tracking. This gem provides comprehensive monitoring capabilities including error tracking, performance monitoring, N+1 query detection, and more for Ruby applications, with special focus on Rails integration.
 
 ## Features
 
@@ -38,7 +38,7 @@ Or install it yourself as:
 ActiveAgent::Client.configure do |config|
   config.api_key = ENV['ACTIVE_AGENT_API_KEY']
   config.project_id = ENV['ACTIVE_AGENT_PROJECT_ID']
-  config.api_url = ENV.fetch('ACTIVE_AGENT_API_URL', 'https://api.activeagent.com')
+  config.api_url = ENV.fetch('ACTIVE_AGENT_API_URL', 'https://api.activerabbit.com')
   config.environment = Rails.env
 end
 ```
@@ -50,7 +50,7 @@ You can also configure the client using environment variables:
 ```bash
 export ACTIVE_AGENT_API_KEY="your-api-key"
 export ACTIVE_AGENT_PROJECT_ID="your-project-id"
-export ACTIVE_AGENT_API_URL="https://api.activeagent.com"
+export ACTIVE_AGENT_API_URL="https://api.activerabbit.com"
 export ACTIVE_AGENT_ENVIRONMENT="production"
 ```
 
@@ -175,7 +175,7 @@ ActiveAgent::Client.configure do |config|
   # Required settings
   config.api_key = 'your-api-key'
   config.project_id = 'your-project-id'
-  config.api_url = 'https://api.activeagent.com'
+  config.api_url = 'https://api.activerabbit.com'
   config.environment = 'production'
 
   # HTTP settings
@@ -275,9 +275,9 @@ Main client interface:
 
 ### Configuration Options
 
-- `api_key` - Your ActiveAgent API key
-- `project_id` - Your ActiveAgent project ID
-- `api_url` - ActiveAgent API endpoint URL
+- `api_key` - Your ActiveRabbit API key
+- `project_id` - Your ActiveRabbit project ID
+- `api_url` - ActiveRabbit API endpoint URL
 - `environment` - Application environment (production, staging, etc.)
 - `timeout` - HTTP request timeout
 - `batch_size` - Number of events to batch together
@@ -310,7 +310,7 @@ bundle exec rspec spec/active_agent/client_spec.rb
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/activeagent/active_agent-client.
+Bug reports and pull requests are welcome on GitHub at https://github.com/activerabbit/active_agent-client.
 
 ## License
 

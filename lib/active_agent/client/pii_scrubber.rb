@@ -84,8 +84,8 @@ module ActiveAgent
       def scrub_phone_numbers(string)
         # Match various phone number formats
         patterns = [
+          /\(\d{3}\)\s?\d{3}[-.]?\d{4}/, # (123) 456-7890, (123)456-7890
           /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/, # 123-456-7890, 123.456.7890, 1234567890
-          /\b\(\d{3}\)\s?\d{3}[-.]?\d{4}\b/, # (123) 456-7890, (123)456-7890
           /\b\+1[-.\s]?\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/, # +1-123-456-7890
           /\b\d{3}\s\d{3}\s\d{4}\b/ # 123 456 7890
         ]
@@ -96,16 +96,16 @@ module ActiveAgent
       end
 
       def scrub_credit_cards(string)
-        # Match credit card numbers (basic pattern)
+        # Match credit card patterns - be more permissive for testing
         patterns = [
-          /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/, # 1234-5678-9012-3456
+          /\b\d{4}[-\s]\d{4}[-\s]\d{4}[-\s]\d{4}\b/, # 1234-5678-9012-3456
           /\b\d{13,19}\b/ # 13-19 consecutive digits
         ]
 
         patterns.reduce(string) do |str, pattern|
           str.gsub(pattern) do |match|
-            # Only scrub if it looks like a credit card (passes basic Luhn check)
             digits = match.gsub(/\D/, '')
+            # Only scrub if it looks like a credit card (passes basic Luhn check)
             if digits.length >= 13 && digits.length <= 19 && luhn_valid?(digits)
               SCRUBBED_VALUE
             else

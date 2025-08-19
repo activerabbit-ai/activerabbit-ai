@@ -40,7 +40,10 @@ module ActiveAgent
       end
 
       def configured?
-        configuration&.api_key&.length&.positive?
+        return false unless configuration
+        return false unless configuration.api_key
+        return false if configuration.api_key.empty?
+        true
       end
 
       # Event tracking methods
@@ -51,7 +54,7 @@ module ActiveAgent
           name: name,
           properties: properties,
           user_id: user_id,
-          timestamp: timestamp || Time.current
+          timestamp: timestamp || Time.now
         )
       end
 

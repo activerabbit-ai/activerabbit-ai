@@ -46,7 +46,7 @@ module ActiveAgent
           message: exception.message,
           backtrace: backtrace,
           fingerprint: generate_fingerprint(exception),
-          timestamp: Time.current.iso8601(3),
+          timestamp: Time.now.iso8601(3),
           environment: configuration.environment,
           release: configuration.release,
           server_name: configuration.server_name,

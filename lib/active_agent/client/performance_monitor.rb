@@ -29,7 +29,7 @@ module ActiveAgent
         transaction_id = SecureRandom.uuid
         @active_transactions[transaction_id] = {
           name: name,
-          start_time: Time.current,
+          start_time: Time.now,
           metadata: metadata
         }
 
@@ -41,7 +41,7 @@ module ActiveAgent
         return unless @active_transactions.key?(transaction_id)
 
         transaction = @active_transactions.delete(transaction_id)
-        duration_ms = ((Time.current - transaction[:start_time]) * 1000).round(2)
+        duration_ms = ((Time.now - transaction[:start_time]) * 1000).round(2)
 
         track_performance(
           name: transaction[:name],
@@ -53,9 +53,9 @@ module ActiveAgent
       def measure(name, metadata: {})
         return yield unless configuration.enable_performance_monitoring
 
-        start_time = Time.current
+        start_time = Time.now
         result = yield
-        end_time = Time.current
+        end_time = Time.now
 
         duration_ms = ((end_time - start_time) * 1000).round(2)
 
@@ -79,7 +79,7 @@ module ActiveAgent
           name: name.to_s,
           duration_ms: duration_ms.to_f,
           metadata: scrub_pii(metadata || {}),
-          timestamp: Time.current.iso8601(3),
+          timestamp: Time.now.iso8601(3),
           environment: configuration.environment,
           release: configuration.release,
           server_name: configuration.server_name

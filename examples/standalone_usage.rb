@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Example standalone usage of ActiveAgent::Client (non-Rails applications)
+# Example standalone usage of ActiveRabbit::Client (non-Rails applications)
 
 require 'active_agent/client'
 

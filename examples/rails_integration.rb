@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-# Example Rails integration for ActiveAgent::Client
+# Example Rails integration for ActiveRabbit::Client
 
 # config/initializers/active_agent.rb
 ActiveAgent::Client.configure do |config|

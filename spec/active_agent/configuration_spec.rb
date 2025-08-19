@@ -25,6 +25,7 @@ RSpec.describe ActiveAgent::Client::Configuration do
       allow(ENV).to receive(:[]).with("ACTIVE_AGENT_ENVIRONMENT").and_return("env-environment")
       allow(ENV).to receive(:fetch).and_call_original
       allow(ENV).to receive(:fetch).with("ACTIVE_AGENT_API_URL", "https://api.activeagent.com").and_return("https://custom-api.com")
+      allow(ENV).to receive(:fetch).with("ACTIVE_AGENT_ENVIRONMENT", anything).and_return("env-environment")
 
       config = described_class.new
 

@@ -7,11 +7,23 @@ RSpec.describe ActiveAgent::Client do
   before do
     # Reset configuration before each test
     ActiveAgent::Client.configuration = nil
+
+    # Clear any cached instances
+    ActiveAgent::Client.instance_variable_set(:@event_processor, nil)
+    ActiveAgent::Client.instance_variable_set(:@exception_tracker, nil)
+    ActiveAgent::Client.instance_variable_set(:@performance_monitor, nil)
+    ActiveAgent::Client.instance_variable_set(:@http_client, nil)
   end
 
   after do
     # Clean up after each test
     ActiveAgent::Client.configuration = nil
+
+    # Clear any cached instances
+    ActiveAgent::Client.instance_variable_set(:@event_processor, nil)
+    ActiveAgent::Client.instance_variable_set(:@exception_tracker, nil)
+    ActiveAgent::Client.instance_variable_set(:@performance_monitor, nil)
+    ActiveAgent::Client.instance_variable_set(:@http_client, nil)
   end
 
   describe "VERSION" do
@@ -220,8 +232,10 @@ RSpec.describe ActiveAgent::Client do
     end
   end
 
-  describe ".shutdown" do
+    describe ".shutdown" do
     let(:event_processor) { instance_double(ActiveAgent::Client::EventProcessor) }
+    let(:exception_tracker) { instance_double(ActiveAgent::Client::ExceptionTracker) }
+    let(:performance_monitor) { instance_double(ActiveAgent::Client::PerformanceMonitor) }
     let(:http_client) { instance_double(ActiveAgent::Client::HttpClient) }
 
     before do
@@ -231,22 +245,20 @@ RSpec.describe ActiveAgent::Client do
       end
 
       allow(ActiveAgent::Client::EventProcessor).to receive(:new).and_return(event_processor)
+      allow(ActiveAgent::Client::ExceptionTracker).to receive(:new).and_return(exception_tracker)
+      allow(ActiveAgent::Client::PerformanceMonitor).to receive(:new).and_return(performance_monitor)
       allow(ActiveAgent::Client::HttpClient).to receive(:new).and_return(http_client)
     end
 
     it "shuts down all components when configured" do
       # First call flush
       expect(event_processor).to receive(:flush)
-      expect(instance_double(ActiveAgent::Client::ExceptionTracker)).to receive(:flush)
-      expect(instance_double(ActiveAgent::Client::PerformanceMonitor)).to receive(:flush)
+      expect(exception_tracker).to receive(:flush)
+      expect(performance_monitor).to receive(:flush)
 
       # Then shutdown components
       expect(event_processor).to receive(:shutdown)
       expect(http_client).to receive(:shutdown)
-
-      # Mock the other components
-      allow(ActiveAgent::Client::ExceptionTracker).to receive(:new).and_return(instance_double(ActiveAgent::Client::ExceptionTracker, flush: nil))
-      allow(ActiveAgent::Client::PerformanceMonitor).to receive(:new).and_return(instance_double(ActiveAgent::Client::PerformanceMonitor, flush: nil))
 
       ActiveAgent::Client.shutdown
     end

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "rails/railtie"
+require "securerandom"
 
 module ActiveAgent
   module Client

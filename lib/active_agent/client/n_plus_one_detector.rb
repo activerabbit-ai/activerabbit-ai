@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "securerandom"
+
 module ActiveAgent
   module Client
     class NPlusOneDetector
@@ -20,7 +22,7 @@ module ActiveAgent
           bindings: bindings,
           name: name,
           duration: duration,
-          timestamp: Time.current,
+          timestamp: Time.now,
           backtrace: caller(2, 10) # Skip this method and the AR method
         }
 
@@ -162,7 +164,7 @@ module ActiveAgent
           type: "NPlusOneQueryIssue",
           message: "N+1 query detected: #{issue[:query_count]} similar queries executed",
           details: issue,
-          timestamp: Time.current.iso8601(3),
+          timestamp: Time.now.iso8601(3),
           environment: configuration.environment,
           release: configuration.release,
           server_name: configuration.server_name

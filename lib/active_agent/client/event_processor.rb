@@ -58,7 +58,7 @@ module ActiveAgent
         data = {
           name: name.to_s,
           properties: scrub_pii(properties || {}),
-          timestamp: (timestamp || Time.current).iso8601(3),
+          timestamp: (timestamp || Time.now).iso8601(3),
           environment: configuration.environment,
           release: configuration.release,
           server_name: configuration.server_name

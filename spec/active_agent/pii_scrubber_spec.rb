@@ -103,7 +103,7 @@ RSpec.describe ActiveAgent::Client::PiiScrubber do
       end
 
       it "scrubs credit card numbers" do
-        text = "Card number: 4532-1234-5678-9012"
+        text = "Card number: 4111-1111-1111-1111" # Valid test credit card number
         result = scrubber.scrub(text)
         expect(result).to eq("Card number: [FILTERED]")
       end

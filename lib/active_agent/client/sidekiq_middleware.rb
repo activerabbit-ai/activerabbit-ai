@@ -4,7 +4,7 @@ module ActiveAgent
   module Client
     class SidekiqMiddleware
       def call(worker, job, queue)
-        start_time = Time.current
+        start_time = Time.now
         job_context = build_job_context(worker, job, queue)
 
         # Set job context for the duration of the job
@@ -14,13 +14,13 @@ module ActiveAgent
           result = yield
 
           # Track successful job completion
-          duration_ms = ((Time.current - start_time) * 1000).round(2)
+          duration_ms = ((Time.now - start_time) * 1000).round(2)
           track_job_performance(worker, job, queue, duration_ms, "completed")
 
           result
         rescue Exception => exception
           # Track job failure
-          duration_ms = ((Time.current - start_time) * 1000).round(2)
+          duration_ms = ((Time.now - start_time) * 1000).round(2)
           track_job_performance(worker, job, queue, duration_ms, "failed")
           track_job_exception(exception, worker, job, queue)
 

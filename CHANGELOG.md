@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Initial release of ActiveAgent Ruby client
+- Initial release of ActiveRabbit Ruby client
 - Error tracking with detailed context and stack traces
 - Performance monitoring for database queries, controller actions, and custom operations
 - N+1 query detection with automatic reporting
