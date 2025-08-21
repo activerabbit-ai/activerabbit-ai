@@ -23,15 +23,15 @@ module ActiveAgent
       end
 
       def post_exception(exception_data)
-        enqueue_request(:post, "api/v1/exceptions", exception_data)
+        enqueue_request(:post, "api/v1/events/errors", exception_data)
       end
 
       def post_performance(performance_data)
-        enqueue_request(:post, "api/v1/performance", performance_data)
+        enqueue_request(:post, "api/v1/events/performance", performance_data)
       end
 
       def post_batch(batch_data)
-        make_request(:post, "api/v1/batch", { events: batch_data })
+        make_request(:post, "api/v1/events/batch", { events: batch_data })
       end
 
       def flush
@@ -72,7 +72,7 @@ module ActiveAgent
           conn.options.open_timeout = configuration.open_timeout
 
           conn.headers["User-Agent"] = "ActiveAgent-Ruby/#{VERSION}"
-          conn.headers["Authorization"] = "Bearer #{configuration.api_key}"
+          conn.headers["X-Project-Token"] = configuration.api_key
           conn.headers["Content-Type"] = "application/json"
 
           if configuration.project_id
@@ -130,3 +130,4 @@ module ActiveAgent
     end
   end
 end
+

@@ -434,3 +434,4 @@ RSpec.describe "ActiveAgent Performance Impact" do
       "ActiveAgent overhead (#{overhead_percent.round(2)}%) exceeds 5% threshold"
   end
 end
+

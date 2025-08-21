@@ -259,3 +259,4 @@ RSpec.describe "Rails Middleware Integration", type: :request do
     end
   end
 end
+
