@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
-RSpec.describe ActiveAgent::Client::Configuration do
+RSpec.describe ActiveRabbit::Client::Configuration do
   let(:config) { described_class.new }
 
   describe "#initialize" do
     it "sets default values" do
-      expect(config.api_url).to eq("https://api.activeagent.com")
+      expect(config.api_url).to eq("https://api.activerabbit.com")
       expect(config.timeout).to eq(30)
       expect(config.open_timeout).to eq(10)
       expect(config.retry_count).to eq(3)
@@ -20,12 +20,12 @@ RSpec.describe ActiveAgent::Client::Configuration do
 
     it "loads values from environment variables" do
       allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with("ACTIVE_AGENT_API_KEY").and_return("env-api-key")
-      allow(ENV).to receive(:[]).with("ACTIVE_AGENT_PROJECT_ID").and_return("env-project-id")
-      allow(ENV).to receive(:[]).with("ACTIVE_AGENT_ENVIRONMENT").and_return("env-environment")
+      allow(ENV).to receive(:[]).with("active_rabbit_API_KEY").and_return("env-api-key")
+      allow(ENV).to receive(:[]).with("active_rabbit_PROJECT_ID").and_return("env-project-id")
+      allow(ENV).to receive(:[]).with("active_rabbit_ENVIRONMENT").and_return("env-environment")
       allow(ENV).to receive(:fetch).and_call_original
-      allow(ENV).to receive(:fetch).with("ACTIVE_AGENT_API_URL", "https://api.activeagent.com").and_return("https://custom-api.com")
-      allow(ENV).to receive(:fetch).with("ACTIVE_AGENT_ENVIRONMENT", anything).and_return("env-environment")
+      allow(ENV).to receive(:fetch).with("active_rabbit_API_URL", "https://api.activerabbit.com").and_return("https://custom-api.com")
+      allow(ENV).to receive(:fetch).with("active_rabbit_ENVIRONMENT", anything).and_return("env-environment")
 
       config = described_class.new
 

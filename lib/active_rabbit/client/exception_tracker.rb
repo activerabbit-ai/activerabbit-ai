@@ -2,7 +2,7 @@
 
 require "digest"
 
-module ActiveAgent
+module ActiveRabbit
   module Client
     class ExceptionTracker
       attr_reader :configuration, :http_client
@@ -61,8 +61,8 @@ module ActiveAgent
         data[:runtime_context] = build_runtime_context
 
         # Add request context if available
-        if defined?(Thread) && Thread.current[:active_agent_request_context]
-          data[:request_context] = Thread.current[:active_agent_request_context]
+        if defined?(Thread) && Thread.current[:active_rabbit_request_context]
+          data[:request_context] = Thread.current[:active_rabbit_request_context]
         end
 
         data

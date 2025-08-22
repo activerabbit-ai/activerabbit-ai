@@ -2,7 +2,7 @@
 
 require "concurrent"
 
-module ActiveAgent
+module ActiveRabbit
   module Client
     class EventProcessor
       attr_reader :configuration, :http_client
@@ -97,8 +97,8 @@ module ActiveAgent
         end
 
         # Request information (if available)
-        if defined?(Thread) && Thread.current[:active_agent_request_context]
-          context[:request] = Thread.current[:active_agent_request_context]
+        if defined?(Thread) && Thread.current[:active_rabbit_request_context]
+          context[:request] = Thread.current[:active_rabbit_request_context]
         end
 
         context
@@ -121,7 +121,7 @@ module ActiveAgent
               sleep(configuration.flush_interval)
               flush unless @event_queue.empty?
             rescue => e
-              configuration.logger&.error("[ActiveAgent] Event processor error: #{e.message}")
+              configuration.logger&.error("[ActiveRabbit] Event processor error: #{e.message}")
             end
           end
         end

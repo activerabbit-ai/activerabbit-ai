@@ -2,13 +2,13 @@
 
 # Example standalone usage of ActiveRabbit::Client (non-Rails applications)
 
-require 'active_agent/client'
+require 'active_rabbit/client'
 
 # Basic configuration
-ActiveAgent::Client.configure do |config|
+ActiveRabbit::Client.configure do |config|
   config.api_key = 'your-api-key-here'
   config.project_id = 'your-project-id'
-  config.api_url = 'https://api.activeagent.com'
+  config.api_url = 'https://api.activerabbit.com'
   config.environment = ENV.fetch('RACK_ENV', 'development')
 
   # Standalone applications might want different settings
@@ -26,7 +26,7 @@ class MyApp < Sinatra::Base
     # Add exception handling middleware
     use Rack::CommonLogger
 
-    # Custom middleware for ActiveAgent context
+    # Custom middleware for ActiveRabbit context
     use Class.new do
       def initialize(app)
         @app = app
@@ -36,7 +36,7 @@ class MyApp < Sinatra::Base
         request = Rack::Request.new(env)
 
         # Set request context
-        Thread.current[:active_agent_request_context] = {
+        Thread.current[:active_rabbit_request_context] = {
           method: request.request_method,
           path: request.path_info,
           query_string: request.query_string,
@@ -48,7 +48,7 @@ class MyApp < Sinatra::Base
           @app.call(env)
         rescue Exception => e
           # Track unhandled exceptions
-          ActiveAgent::Client.track_exception(
+          ActiveRabbit::Client.track_exception(
             e,
             context: {
               request: {
@@ -60,7 +60,7 @@ class MyApp < Sinatra::Base
           )
           raise
         ensure
-          Thread.current[:active_agent_request_context] = nil
+          Thread.current[:active_rabbit_request_context] = nil
         end
       end
     end
@@ -68,7 +68,7 @@ class MyApp < Sinatra::Base
 
   get '/api/users/:id' do
     # Track API endpoint usage
-    ActiveAgent::Client.track_event(
+    ActiveRabbit::Client.track_event(
       'api_endpoint_accessed',
       {
         endpoint: '/api/users/:id',
@@ -77,7 +77,7 @@ class MyApp < Sinatra::Base
     )
 
     # Performance monitoring
-    user_data = ActiveAgent::Client.performance_monitor.measure('user_lookup') do
+    user_data = ActiveRabbit::Client.performance_monitor.measure('user_lookup') do
       # Simulate database lookup
       sleep(0.1)
       { id: params[:id], name: "User #{params[:id]}" }
@@ -92,7 +92,7 @@ class MyApp < Sinatra::Base
       # Process some data
       result = process_data(params)
 
-      ActiveAgent::Client.track_event(
+      ActiveRabbit::Client.track_event(
         'data_processed',
         {
           records_processed: result[:count],
@@ -102,7 +102,7 @@ class MyApp < Sinatra::Base
 
       { status: 'success', result: result }.to_json
     rescue ProcessingError => e
-      ActiveAgent::Client.track_exception(
+      ActiveRabbit::Client.track_exception(
         e,
         context: {
           input_data: params,
@@ -138,10 +138,10 @@ end
 # Example: Background worker script
 class BackgroundWorker
   def initialize
-    # Configure ActiveAgent for background processes
-    ActiveAgent::Client.configure do |config|
-      config.api_key = ENV['ACTIVE_AGENT_API_KEY']
-      config.project_id = ENV['ACTIVE_AGENT_PROJECT_ID']
+    # Configure ActiveRabbit for background processes
+    ActiveRabbit::Client.configure do |config|
+      config.api_key = ENV['active_rabbit_API_KEY']
+      config.project_id = ENV['active_rabbit_PROJECT_ID']
       config.environment = ENV.fetch('ENVIRONMENT', 'development')
       config.server_name = "worker-#{Socket.gethostname}"
     end
@@ -150,7 +150,7 @@ class BackgroundWorker
   def run
     puts "Starting background worker..."
 
-    ActiveAgent::Client.track_event('worker_started', {
+    ActiveRabbit::Client.track_event('worker_started', {
       hostname: Socket.gethostname,
       pid: Process.pid
     })
@@ -162,7 +162,7 @@ class BackgroundWorker
 
         process_job(job)
       rescue => e
-        ActiveAgent::Client.track_exception(
+        ActiveRabbit::Client.track_exception(
           e,
           context: { component: 'background_worker' },
           tags: { severity: 'high' }
@@ -172,8 +172,8 @@ class BackgroundWorker
       end
     end
 
-    ActiveAgent::Client.track_event('worker_stopped')
-    ActiveAgent::Client.shutdown
+    ActiveRabbit::Client.track_event('worker_stopped')
+    ActiveRabbit::Client.shutdown
   end
 
   private
@@ -190,7 +190,7 @@ class BackgroundWorker
   end
 
   def process_job(job)
-    transaction_id = ActiveAgent::Client.performance_monitor.start_transaction(
+    transaction_id = ActiveRabbit::Client.performance_monitor.start_transaction(
       "job_#{job[:type]}",
       metadata: { job_id: job[:id] }
     )
@@ -206,7 +206,7 @@ class BackgroundWorker
         cleanup_data(job[:data])
       end
 
-      ActiveAgent::Client.track_event(
+      ActiveRabbit::Client.track_event(
         'job_completed',
         {
           job_id: job[:id],
@@ -214,7 +214,7 @@ class BackgroundWorker
         }
       )
     rescue => e
-      ActiveAgent::Client.track_exception(
+      ActiveRabbit::Client.track_exception(
         e,
         context: {
           job: job,
@@ -223,7 +223,7 @@ class BackgroundWorker
       )
       raise
     ensure
-      ActiveAgent::Client.performance_monitor.finish_transaction(
+      ActiveRabbit::Client.performance_monitor.finish_transaction(
         transaction_id,
         additional_metadata: { status: 'completed' }
       )
@@ -248,9 +248,9 @@ end
 namespace :data do
   desc "Migrate user data"
   task migrate_users: :environment do
-    ActiveAgent::Client.configure do |config|
-      config.api_key = ENV['ACTIVE_AGENT_API_KEY']
-      config.project_id = ENV['ACTIVE_AGENT_PROJECT_ID']
+    ActiveRabbit::Client.configure do |config|
+      config.api_key = ENV['active_rabbit_API_KEY']
+      config.project_id = ENV['active_rabbit_PROJECT_ID']
       config.environment = 'migration'
     end
 
@@ -258,7 +258,7 @@ namespace :data do
     processed_count = 0
     error_count = 0
 
-    ActiveAgent::Client.track_event('migration_started', {
+    ActiveRabbit::Client.track_event('migration_started', {
       task: 'migrate_users',
       started_at: start_time
     })
@@ -270,7 +270,7 @@ namespace :data do
           processed_count += 1
         rescue => e
           error_count += 1
-          ActiveAgent::Client.track_exception(
+          ActiveRabbit::Client.track_exception(
             e,
             context: {
               user_id: user.id,
@@ -282,7 +282,7 @@ namespace :data do
 
       duration = Time.current - start_time
 
-      ActiveAgent::Client.track_event('migration_completed', {
+      ActiveRabbit::Client.track_event('migration_completed', {
         task: 'migrate_users',
         duration_seconds: duration.round(2),
         processed_count: processed_count,
@@ -291,7 +291,7 @@ namespace :data do
 
       puts "Migration completed: #{processed_count} users processed, #{error_count} errors"
     ensure
-      ActiveAgent::Client.shutdown
+      ActiveRabbit::Client.shutdown
     end
   end
 end

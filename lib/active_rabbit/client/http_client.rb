@@ -5,7 +5,7 @@ require "faraday/retry"
 require "json"
 require "concurrent"
 
-module ActiveAgent
+module ActiveRabbit
   module Client
     class HttpClient
       attr_reader :configuration
@@ -23,11 +23,15 @@ module ActiveAgent
       end
 
       def post_exception(exception_data)
-        enqueue_request(:post, "api/v1/events/errors", exception_data)
+        # Add event_type for batch processing
+        exception_data_with_type = exception_data.merge(event_type: 'error')
+        enqueue_request(:post, "api/v1/events/errors", exception_data_with_type)
       end
 
       def post_performance(performance_data)
-        enqueue_request(:post, "api/v1/events/performance", performance_data)
+        # Add event_type for batch processing
+        performance_data_with_type = performance_data.merge(event_type: 'performance')
+        enqueue_request(:post, "api/v1/events/performance", performance_data_with_type)
       end
 
       def post_batch(batch_data)
@@ -43,7 +47,7 @@ module ActiveAgent
         begin
           post_batch(batch)
         rescue => e
-          configuration.logger&.error("[ActiveAgent] Failed to send batch: #{e.message}")
+          configuration.logger&.error("[ActiveRabbit] Failed to send batch: #{e.message}")
           raise APIError, "Failed to send batch: #{e.message}"
         end
       end
@@ -71,7 +75,7 @@ module ActiveAgent
           conn.options.timeout = configuration.timeout
           conn.options.open_timeout = configuration.open_timeout
 
-          conn.headers["User-Agent"] = "ActiveAgent-Ruby/#{VERSION}"
+          conn.headers["User-Agent"] = "ActiveRabbit-Ruby/#{VERSION}"
           conn.headers["X-Project-Token"] = configuration.api_key
           conn.headers["Content-Type"] = "application/json"
 

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module ActiveAgent
+module ActiveRabbit
   module Client
     class SidekiqMiddleware
       def call(worker, job, queue)
@@ -8,7 +8,7 @@ module ActiveAgent
         job_context = build_job_context(worker, job, queue)
 
         # Set job context for the duration of the job
-        Thread.current[:active_agent_job_context] = job_context
+        Thread.current[:active_rabbit_job_context] = job_context
 
         begin
           result = yield
@@ -28,7 +28,7 @@ module ActiveAgent
           raise exception
         ensure
           # Clean up job context
-          Thread.current[:active_agent_job_context] = nil
+          Thread.current[:active_rabbit_job_context] = nil
         end
       end
 
@@ -47,9 +47,9 @@ module ActiveAgent
       end
 
       def track_job_performance(worker, job, queue, duration_ms, status)
-        return unless ActiveAgent::Client.configured?
+        return unless ActiveRabbit::Client.configured?
 
-        ActiveAgent::Client.track_performance(
+        ActiveRabbit::Client.track_performance(
           "sidekiq.job",
           duration_ms,
           metadata: {
@@ -64,7 +64,7 @@ module ActiveAgent
 
         # Track slow jobs
         if duration_ms > 30_000 # Slower than 30 seconds
-          ActiveAgent::Client.track_event(
+          ActiveRabbit::Client.track_event(
             "slow_sidekiq_job",
             {
               worker_class: worker.class.name,
@@ -76,7 +76,7 @@ module ActiveAgent
         end
 
         # Track job completion event
-        ActiveAgent::Client.track_event(
+        ActiveRabbit::Client.track_event(
           "sidekiq_job_#{status}",
           {
             worker_class: worker.class.name,
@@ -88,9 +88,9 @@ module ActiveAgent
       end
 
       def track_job_exception(exception, worker, job, queue)
-        return unless ActiveAgent::Client.configured?
+        return unless ActiveRabbit::Client.configured?
 
-        ActiveAgent::Client.track_exception(
+        ActiveRabbit::Client.track_exception(
           exception,
           context: {
             job: {
@@ -111,10 +111,10 @@ module ActiveAgent
       end
 
       def scrub_job_args(args)
-        return args unless ActiveAgent::Client.configuration.enable_pii_scrubbing
+        return args unless ActiveRabbit::Client.configuration.enable_pii_scrubbing
         return args unless args.is_a?(Array)
 
-        PiiScrubber.new(ActiveAgent::Client.configuration).scrub(args)
+        PiiScrubber.new(ActiveRabbit::Client.configuration).scrub(args)
       end
     end
 
@@ -122,7 +122,7 @@ module ActiveAgent
     if defined?(Sidekiq)
       Sidekiq.configure_server do |config|
         config.server_middleware do |chain|
-          chain.add ActiveAgent::Client::SidekiqMiddleware
+          chain.add ActiveRabbit::Client::SidekiqMiddleware
         end
       end
     end

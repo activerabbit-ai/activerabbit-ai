@@ -1,4 +1,4 @@
-module ActiveAgent
+module ActiveRabbit
   module Client
     VERSION: String
     # See the writing guide of rbs: https://github.com/ruby/rbs#guides

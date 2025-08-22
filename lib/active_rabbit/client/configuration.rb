@@ -3,7 +3,7 @@
 require "socket"
 require "logger"
 
-module ActiveAgent
+module ActiveRabbit
   module Client
     class Configuration
       attr_accessor :api_key, :api_url, :project_id, :environment
@@ -16,10 +16,10 @@ module ActiveAgent
       attr_accessor :before_send_event, :before_send_exception
 
       def initialize
-        @api_url = ENV.fetch("ACTIVE_AGENT_API_URL", "https://api.activerabbit.com")
-        @api_key = ENV["ACTIVE_AGENT_API_KEY"]
-        @project_id = ENV["ACTIVE_AGENT_PROJECT_ID"]
-        @environment = ENV.fetch("ACTIVE_AGENT_ENVIRONMENT", detect_environment)
+        @api_url = ENV.fetch("active_rabbit_API_URL", "https://api.activerabbit.com")
+        @api_key = ENV["active_rabbit_API_KEY"]
+        @project_id = ENV["active_rabbit_PROJECT_ID"]
+        @environment = ENV.fetch("active_rabbit_ENVIRONMENT", detect_environment)
 
         # HTTP settings
         @timeout = 30

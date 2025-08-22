@@ -1,4 +1,4 @@
-# ActiveAgent::Client
+# ActiveRabbit::Client
 
 Ruby client library for ActiveRabbit application monitoring and error tracking. This gem provides comprehensive monitoring capabilities including error tracking, performance monitoring, N+1 query detection, and more for Ruby applications, with special focus on Rails integration.
 
@@ -18,7 +18,7 @@ Ruby client library for ActiveRabbit application monitoring and error tracking. 
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'active_agent-client'
+gem 'active_rabbit-client'
 ```
 
 And then execute:
@@ -27,18 +27,18 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install active_agent-client
+    $ gem install active_rabbit-client
 
 ## Quick Start
 
 ### Basic Configuration
 
 ```ruby
-# config/initializers/active_agent.rb
-ActiveAgent::Client.configure do |config|
-  config.api_key = ENV['ACTIVE_AGENT_API_KEY']
-  config.project_id = ENV['ACTIVE_AGENT_PROJECT_ID']
-  config.api_url = ENV.fetch('ACTIVE_AGENT_API_URL', 'https://api.activerabbit.com')
+# config/initializers/active_rabbit.rb
+ActiveRabbit::Client.configure do |config|
+  config.api_key = ENV['active_rabbit_API_KEY']
+  config.project_id = ENV['active_rabbit_PROJECT_ID']
+  config.api_url = ENV.fetch('active_rabbit_API_URL', 'https://api.activerabbit.com')
   config.environment = Rails.env
 end
 ```
@@ -48,10 +48,10 @@ end
 You can also configure the client using environment variables:
 
 ```bash
-export ACTIVE_AGENT_API_KEY="your-api-key"
-export ACTIVE_AGENT_PROJECT_ID="your-project-id"
-export ACTIVE_AGENT_API_URL="https://api.activerabbit.com"
-export ACTIVE_AGENT_ENVIRONMENT="production"
+export active_rabbit_API_KEY="your-api-key"
+export active_rabbit_PROJECT_ID="your-project-id"
+export active_rabbit_API_URL="https://api.activerabbit.com"
+export active_rabbit_ENVIRONMENT="production"
 ```
 
 ## Usage
@@ -63,7 +63,7 @@ begin
   # Some risky operation
   risky_operation
 rescue => exception
-  ActiveAgent::Client.track_exception(
+  ActiveRabbit::Client.track_exception(
     exception,
     context: { user_id: current_user.id, action: 'risky_operation' },
     tags: { component: 'payment_processor' }
@@ -76,7 +76,7 @@ end
 
 ```ruby
 # Track custom events
-ActiveAgent::Client.track_event(
+ActiveRabbit::Client.track_event(
   'user_signup',
   {
     plan: 'premium',
@@ -90,7 +90,7 @@ ActiveAgent::Client.track_event(
 
 ```ruby
 # Manual performance tracking
-ActiveAgent::Client.track_performance(
+ActiveRabbit::Client.track_performance(
   'database_migration',
   duration_ms: 1500,
   metadata: {
@@ -100,7 +100,7 @@ ActiveAgent::Client.track_performance(
 )
 
 # Block-based measurement
-result = ActiveAgent::Client.performance_monitor.measure('complex_calculation') do
+result = ActiveRabbit::Client.performance_monitor.measure('complex_calculation') do
   perform_complex_calculation
 end
 ```
@@ -109,7 +109,7 @@ end
 
 ```ruby
 # Start a performance transaction
-transaction_id = ActiveAgent::Client.performance_monitor.start_transaction(
+transaction_id = ActiveRabbit::Client.performance_monitor.start_transaction(
   'order_processing',
   metadata: { order_id: order.id }
 )
@@ -117,7 +117,7 @@ transaction_id = ActiveAgent::Client.performance_monitor.start_transaction(
 # ... perform operations ...
 
 # Finish the transaction
-ActiveAgent::Client.performance_monitor.finish_transaction(
+ActiveRabbit::Client.performance_monitor.finish_transaction(
   transaction_id,
   additional_metadata: { items_count: order.items.count }
 )
@@ -138,14 +138,14 @@ The gem automatically integrates with Rails when detected:
 
 ```ruby
 class ApplicationController < ActionController::Base
-  before_action :set_active_agent_context
+  before_action :set_active_rabbit_context
 
   private
 
-  def set_active_agent_context
+  def set_active_rabbit_context
     # Additional context can be added to all requests
-    Thread.current[:active_agent_request_context] ||= {}
-    Thread.current[:active_agent_request_context][:user_id] = current_user&.id
+    Thread.current[:active_rabbit_request_context] ||= {}
+    Thread.current[:active_rabbit_request_context][:user_id] = current_user&.id
   end
 end
 ```
@@ -171,7 +171,7 @@ end
 ### Basic Configuration
 
 ```ruby
-ActiveAgent::Client.configure do |config|
+ActiveRabbit::Client.configure do |config|
   # Required settings
   config.api_key = 'your-api-key'
   config.project_id = 'your-project-id'
@@ -194,7 +194,7 @@ end
 ### Feature Toggles
 
 ```ruby
-ActiveAgent::Client.configure do |config|
+ActiveRabbit::Client.configure do |config|
   # Enable/disable features
   config.enable_performance_monitoring = true
   config.enable_n_plus_one_detection = true
@@ -205,7 +205,7 @@ end
 ### PII Scrubbing Configuration
 
 ```ruby
-ActiveAgent::Client.configure do |config|
+ActiveRabbit::Client.configure do |config|
   config.enable_pii_scrubbing = true
   config.pii_fields = %w[
     password password_confirmation token secret key
@@ -219,7 +219,7 @@ end
 ### Exception Filtering
 
 ```ruby
-ActiveAgent::Client.configure do |config|
+ActiveRabbit::Client.configure do |config|
   # Ignore specific exceptions
   config.ignored_exceptions = %w[
     ActiveRecord::RecordNotFound
@@ -239,7 +239,7 @@ end
 ### Callbacks
 
 ```ruby
-ActiveAgent::Client.configure do |config|
+ActiveRabbit::Client.configure do |config|
   # Filter events before sending
   config.before_send_event = proc do |event_data|
     # Return nil to skip sending the event
@@ -261,7 +261,7 @@ end
 
 ## API Reference
 
-### ActiveAgent::Client
+### ActiveRabbit::Client
 
 Main client interface:
 
@@ -305,12 +305,12 @@ bundle exec rspec
 COVERAGE=true bundle exec rspec
 
 # Run specific test file
-bundle exec rspec spec/active_agent/client_spec.rb
+bundle exec rspec spec/active_rabbit/client_spec.rb
 ```
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/activerabbit/active_agent-client.
+Bug reports and pull requests are welcome on GitHub at https://github.com/activerabbit/active_rabbit-client.
 
 ## License
 

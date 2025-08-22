@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module ActiveAgent
+module ActiveRabbit
   module Client
     VERSION = "0.1.0"
   end

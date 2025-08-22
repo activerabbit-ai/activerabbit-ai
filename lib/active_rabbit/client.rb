@@ -23,7 +23,7 @@ rescue LoadError
   # Sidekiq not available, skip integration
 end
 
-module ActiveAgent
+module ActiveRabbit
   module Client
     class Error < StandardError; end
     class ConfigurationError < Error; end

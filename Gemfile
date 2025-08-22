@@ -2,7 +2,7 @@
 
 source "https://rubygems.org"
 
-# Specify your gem's dependencies in active_agent-client.gemspec
+# Specify your gem's dependencies in active_rabbit-client.gemspec
 gemspec
 
 gem "irb"

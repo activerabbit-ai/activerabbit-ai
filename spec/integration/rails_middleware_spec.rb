@@ -5,20 +5,20 @@ require 'webmock/rspec'
 
 RSpec.describe "Rails Middleware Integration", type: :request do
   before do
-    ActiveAgent::Client.configure do |config|
+    ActiveRabbit::Client.configure do |config|
       config.api_key = "test-api-key"
       config.project_id = "test-project"
-      config.api_url = "https://api.activeagent.com"
+      config.api_url = "https://api.activerabbit.com"
     end
 
-    # Stub all ActiveAgent API calls
-    stub_request(:post, "https://api.activeagent.com/api/v1/exceptions")
+    # Stub all ActiveRabbit API calls
+    stub_request(:post, "https://api.activerabbit.com/api/v1/exceptions")
       .to_return(status: 200, body: '{"status":"ok"}')
-    stub_request(:post, "https://api.activeagent.com/api/v1/events")
+    stub_request(:post, "https://api.activerabbit.com/api/v1/events")
       .to_return(status: 200, body: '{"status":"ok"}')
-    stub_request(:post, "https://api.activeagent.com/api/v1/performance")
+    stub_request(:post, "https://api.activerabbit.com/api/v1/performance")
       .to_return(status: 200, body: '{"status":"ok"}')
-    stub_request(:post, "https://api.activeagent.com/api/v1/batch")
+    stub_request(:post, "https://api.activerabbit.com/api/v1/batch")
       .to_return(status: 200, body: '{"status":"ok"}')
   end
 
@@ -38,8 +38,8 @@ RSpec.describe "Rails Middleware Integration", type: :request do
         get '/test_exception'
       }.to raise_error(StandardError, "Test exception message")
 
-      # Verify exception was reported to ActiveAgent
-      expect(WebMock).to have_requested(:post, "https://api.activeagent.com/api/v1/exceptions")
+      # Verify exception was reported to ActiveRabbit
+      expect(WebMock).to have_requested(:post, "https://api.activerabbit.com/api/v1/exceptions")
         .with { |request|
           body = JSON.parse(request.body)
           body["type"] == "StandardError" &&
@@ -58,7 +58,7 @@ RSpec.describe "Rails Middleware Integration", type: :request do
         get '/test_context', params: { foo: 'bar' }, headers: { 'User-Agent' => 'TestAgent/1.0' }
       }.to raise_error(ArgumentError)
 
-      expect(WebMock).to have_requested(:post, "https://api.activeagent.com/api/v1/exceptions")
+      expect(WebMock).to have_requested(:post, "https://api.activerabbit.com/api/v1/exceptions")
         .with { |request|
           body = JSON.parse(request.body)
           body["context"]["request"]["query_string"].include?("foo=bar") &&
@@ -77,7 +77,7 @@ RSpec.describe "Rails Middleware Integration", type: :request do
       expect(response.body).to eq('OK')
 
       # No exception should be reported
-      expect(WebMock).not_to have_requested(:post, "https://api.activeagent.com/api/v1/exceptions")
+      expect(WebMock).not_to have_requested(:post, "https://api.activerabbit.com/api/v1/exceptions")
     end
   end
 
@@ -87,7 +87,7 @@ RSpec.describe "Rails Middleware Integration", type: :request do
 
       Rails.application.routes.draw do
         get '/test_request_context', to: proc { |env|
-          context_captured = Thread.current[:active_agent_request_context]
+          context_captured = Thread.current[:active_rabbit_request_context]
           [200, {}, ['OK']]
         }
       end
@@ -108,14 +108,14 @@ RSpec.describe "Rails Middleware Integration", type: :request do
 
       get '/test_cleanup'
 
-      expect(Thread.current[:active_agent_request_context]).to be_nil
+      expect(Thread.current[:active_rabbit_request_context]).to be_nil
     end
 
     it "skips asset requests" do
       Rails.application.routes.draw do
         get '/assets/application.js', to: proc { |env|
           # This should not have request context set
-          context = Thread.current[:active_agent_request_context]
+          context = Thread.current[:active_rabbit_request_context]
           [200, {}, [context ? 'CONTEXT_SET' : 'NO_CONTEXT']]
         }
       end
@@ -128,7 +128,7 @@ RSpec.describe "Rails Middleware Integration", type: :request do
     it "skips health check requests" do
       Rails.application.routes.draw do
         get '/health', to: proc { |env|
-          context = Thread.current[:active_agent_request_context]
+          context = Thread.current[:active_rabbit_request_context]
           [200, {}, [context ? 'CONTEXT_SET' : 'NO_CONTEXT']]
         }
       end
@@ -151,7 +151,7 @@ RSpec.describe "Rails Middleware Integration", type: :request do
       get '/slow_action'
 
       # Performance data should be sent
-      expect(WebMock).to have_requested(:post, "https://api.activeagent.com/api/v1/performance")
+      expect(WebMock).to have_requested(:post, "https://api.activerabbit.com/api/v1/performance")
         .with { |request|
           body = JSON.parse(request.body)
           body["name"] == "controller.action" &&
@@ -162,7 +162,7 @@ RSpec.describe "Rails Middleware Integration", type: :request do
 
   describe "Configuration Filtering" do
     it "respects ignored user agents" do
-      ActiveAgent::Client.configuration.ignored_user_agents = [/TestBot/i]
+      ActiveRabbit::Client.configuration.ignored_user_agents = [/TestBot/i]
 
       Rails.application.routes.draw do
         get '/bot_request', to: proc { |env| raise StandardError, "Bot error" }
@@ -173,11 +173,11 @@ RSpec.describe "Rails Middleware Integration", type: :request do
       }.to raise_error(StandardError)
 
       # Exception should not be reported due to ignored user agent
-      expect(WebMock).not_to have_requested(:post, "https://api.activeagent.com/api/v1/exceptions")
+      expect(WebMock).not_to have_requested(:post, "https://api.activerabbit.com/api/v1/exceptions")
     end
 
     it "respects ignored exceptions" do
-      ActiveAgent::Client.configuration.ignored_exceptions = ['StandardError']
+      ActiveRabbit::Client.configuration.ignored_exceptions = ['StandardError']
 
       Rails.application.routes.draw do
         get '/ignored_error', to: proc { |env| raise StandardError, "Ignored error" }
@@ -188,32 +188,32 @@ RSpec.describe "Rails Middleware Integration", type: :request do
       }.to raise_error(StandardError)
 
       # Exception should not be reported due to being in ignored list
-      expect(WebMock).not_to have_requested(:post, "https://api.activeagent.com/api/v1/exceptions")
+      expect(WebMock).not_to have_requested(:post, "https://api.activerabbit.com/api/v1/exceptions")
     end
   end
 
   describe "Error Handling Resilience" do
-    it "continues working when ActiveAgent API is down" do
+    it "continues working when ActiveRabbit API is down" do
       # Stub API to return errors
-      stub_request(:post, "https://api.activeagent.com/api/v1/exceptions")
+      stub_request(:post, "https://api.activerabbit.com/api/v1/exceptions")
         .to_return(status: 500, body: 'Internal Server Error')
 
       Rails.application.routes.draw do
         get '/test_resilience', to: proc { |env| raise RuntimeError, "Test error" }
       end
 
-      # Application should still work normally even if ActiveAgent fails
+      # Application should still work normally even if ActiveRabbit fails
       expect {
         get '/test_resilience'
       }.to raise_error(RuntimeError, "Test error")
 
       # Verify attempt was made to report exception
-      expect(WebMock).to have_requested(:post, "https://api.activeagent.com/api/v1/exceptions")
+      expect(WebMock).to have_requested(:post, "https://api.activerabbit.com/api/v1/exceptions")
     end
 
-    it "doesn't crash when ActiveAgent configuration is invalid" do
+    it "doesn't crash when ActiveRabbit configuration is invalid" do
       # Set invalid configuration
-      ActiveAgent::Client.configuration.api_key = nil
+      ActiveRabbit::Client.configuration.api_key = nil
 
       Rails.application.routes.draw do
         get '/test_invalid_config', to: proc { |env| raise StandardError, "Config test" }
@@ -225,7 +225,7 @@ RSpec.describe "Rails Middleware Integration", type: :request do
       }.to raise_error(StandardError, "Config test")
 
       # No API call should be made with invalid config
-      expect(WebMock).not_to have_requested(:post, /api\.activeagent\.com/)
+      expect(WebMock).not_to have_requested(:post, /api\.activerabbit\.com/)
     end
   end
 
@@ -254,7 +254,7 @@ RSpec.describe "Rails Middleware Integration", type: :request do
       threads.each(&:join)
 
       # Should have made multiple exception reports
-      expect(WebMock).to have_requested(:post, "https://api.activeagent.com/api/v1/exceptions")
+      expect(WebMock).to have_requested(:post, "https://api.activerabbit.com/api/v1/exceptions")
         .at_least_times(10)
     end
   end

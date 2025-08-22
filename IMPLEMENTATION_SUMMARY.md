@@ -7,9 +7,9 @@ All **19 core files** have been successfully created for the ActiveRabbit Ruby c
 ## 📁 File Structure Overview
 
 ```
-active_agent-client/
+active_rabbit-client/
 ├── lib/
-│   └── active_agent/
+│   └── active_rabbit/
 │       ├── client.rb                    # Main client interface
 │       └── client/
 │           ├── version.rb               # Version management
@@ -23,7 +23,7 @@ active_agent-client/
 │           ├── railtie.rb              # Rails integration
 │           └── sidekiq_middleware.rb    # Sidekiq integration
 ├── spec/
-│   ├── active_agent/
+│   ├── active_rabbit/
 │   │   ├── client_spec.rb              # Main client tests
 │   │   ├── configuration_spec.rb       # Configuration tests
 │   │   └── pii_scrubber_spec.rb        # PII scrubber tests
@@ -31,7 +31,7 @@ active_agent-client/
 ├── examples/
 │   ├── rails_integration.rb            # Rails usage examples
 │   └── standalone_usage.rb             # Standalone usage examples
-├── active_agent-client.gemspec         # Gem specification
+├── active_rabbit-client.gemspec         # Gem specification
 ├── README.md                           # Comprehensive documentation
 ├── CHANGELOG.md                        # Version history
 └── Gemfile                            # Dependencies
@@ -165,17 +165,17 @@ active_agent-client/
 ## 🧪 Test Suite
 
 ### Core Tests Implemented:
-- ✅ **Main Client Tests** (`spec/active_agent/client_spec.rb`)
+- ✅ **Main Client Tests** (`spec/active_rabbit/client_spec.rb`)
   - Configuration testing
   - API method testing
   - Error handling
   - Component integration
-- ✅ **Configuration Tests** (`spec/active_agent/configuration_spec.rb`)
+- ✅ **Configuration Tests** (`spec/active_rabbit/configuration_spec.rb`)
   - Default value validation
   - Environment variable loading
   - Validation methods
   - Exception/user agent filtering
-- ✅ **PII Scrubber Tests** (`spec/active_agent/pii_scrubber_spec.rb`)
+- ✅ **PII Scrubber Tests** (`spec/active_rabbit/pii_scrubber_spec.rb`)
   - Hash/array/string scrubbing
   - Pattern detection
   - Custom field configuration

@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module ActiveAgent
+module ActiveRabbit
   module Client
     class PiiScrubber
       SCRUBBED_VALUE = "[FILTERED]"

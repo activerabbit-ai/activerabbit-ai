@@ -1,38 +1,38 @@
 # frozen_string_literal: true
 
-# Example Rails Application Testing with ActiveAgent
-# This file shows how to test ActiveAgent integration in your Rails app
+# Example Rails Application Testing with ActiveRabbit
+# This file shows how to test ActiveRabbit integration in your Rails app
 
-# spec/support/active_agent_helpers.rb
-module ActiveAgentHelpers
-  def setup_active_agent_test
-    ActiveAgent::Client.configure do |config|
+# spec/support/active_rabbit_helpers.rb
+module ActiveRabbitHelpers
+  def setup_active_rabbit_test
+    ActiveRabbit::Client.configure do |config|
       config.api_key = "test-api-key"
       config.project_id = "test-project"
-      config.api_url = "https://api.activeagent.com"
+      config.api_url = "https://api.activerabbit.com"
       config.environment = "test"
     end
 
     # Stub all API calls
-    stub_active_agent_api
+    stub_active_rabbit_api
   end
 
-  def stub_active_agent_api
-    stub_request(:post, "https://api.activeagent.com/api/v1/exceptions")
+  def stub_active_rabbit_api
+    stub_request(:post, "https://api.activerabbit.com/api/v1/exceptions")
       .to_return(status: 200, body: '{"status":"ok"}')
 
-    stub_request(:post, "https://api.activeagent.com/api/v1/events")
+    stub_request(:post, "https://api.activerabbit.com/api/v1/events")
       .to_return(status: 200, body: '{"status":"ok"}')
 
-    stub_request(:post, "https://api.activeagent.com/api/v1/performance")
+    stub_request(:post, "https://api.activerabbit.com/api/v1/performance")
       .to_return(status: 200, body: '{"status":"ok"}')
 
-    stub_request(:post, "https://api.activeagent.com/api/v1/batch")
+    stub_request(:post, "https://api.activerabbit.com/api/v1/batch")
       .to_return(status: 200, body: '{"status":"ok"}')
   end
 
   def expect_exception_tracked(exception_type: nil, message: nil, context: nil)
-    expect(WebMock).to have_requested(:post, "https://api.activeagent.com/api/v1/exceptions")
+    expect(WebMock).to have_requested(:post, "https://api.activerabbit.com/api/v1/exceptions")
       .with { |request|
         body = JSON.parse(request.body)
 
@@ -51,7 +51,7 @@ module ActiveAgentHelpers
   end
 
   def expect_event_tracked(event_name, properties: nil)
-    expect(WebMock).to have_requested(:post, "https://api.activeagent.com/api/v1/events")
+    expect(WebMock).to have_requested(:post, "https://api.activerabbit.com/api/v1/events")
       .with { |request|
         body = JSON.parse(request.body)
 
@@ -68,7 +68,7 @@ module ActiveAgentHelpers
   end
 
   def expect_performance_tracked(operation_name, min_duration: nil)
-    expect(WebMock).to have_requested(:post, "https://api.activeagent.com/api/v1/performance")
+    expect(WebMock).to have_requested(:post, "https://api.activerabbit.com/api/v1/performance")
       .with { |request|
         body = JSON.parse(request.body)
 
@@ -83,15 +83,15 @@ end
 # Include in RSpec configuration
 # spec/rails_helper.rb
 RSpec.configure do |config|
-  config.include ActiveAgentHelpers
+  config.include ActiveRabbitHelpers
 
   config.before(:each) do
-    setup_active_agent_test
+    setup_active_rabbit_test
   end
 
   config.after(:each) do
-    ActiveAgent::Client.configuration = nil
-    Thread.current[:active_agent_request_context] = nil
+    ActiveRabbit::Client.configuration = nil
+    Thread.current[:active_rabbit_request_context] = nil
   end
 end
 
@@ -404,13 +404,13 @@ RSpec.describe "Error Handling", type: :system do
 end
 
 # Performance test example
-# spec/performance/activeagent_impact_spec.rb
-RSpec.describe "ActiveAgent Performance Impact" do
+# spec/performance/activerabbit_impact_spec.rb
+RSpec.describe "ActiveRabbit Performance Impact" do
   let(:iterations) { 100 }
 
   it "has minimal impact on controller actions" do
-    # Baseline without ActiveAgent
-    ActiveAgent::Client.configuration = nil
+    # Baseline without ActiveRabbit
+    ActiveRabbit::Client.configuration = nil
 
     baseline_time = Benchmark.measure do
       iterations.times do
@@ -418,20 +418,20 @@ RSpec.describe "ActiveAgent Performance Impact" do
       end
     end
 
-    # With ActiveAgent enabled
-    setup_active_agent_test
+    # With ActiveRabbit enabled
+    setup_active_rabbit_test
 
-    activeagent_time = Benchmark.measure do
+    activerabbit_time = Benchmark.measure do
       iterations.times do
         get "/users/1"
       end
     end
 
     # Calculate overhead
-    overhead_percent = ((activeagent_time.real - baseline_time.real) / baseline_time.real) * 100
+    overhead_percent = ((activerabbit_time.real - baseline_time.real) / baseline_time.real) * 100
 
     expect(overhead_percent).to be < 5,
-      "ActiveAgent overhead (#{overhead_percent.round(2)}%) exceeds 5% threshold"
+      "ActiveRabbit overhead (#{overhead_percent.round(2)}%) exceeds 5% threshold"
   end
 end
 

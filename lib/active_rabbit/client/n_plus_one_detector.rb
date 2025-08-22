@@ -2,7 +2,7 @@
 
 require "securerandom"
 
-module ActiveAgent
+module ActiveRabbit
   module Client
     class NPlusOneDetector
       attr_reader :configuration
@@ -45,7 +45,7 @@ module ActiveAgent
 
       def start_request(request_id = nil)
         request_id ||= SecureRandom.uuid
-        Thread.current[:active_agent_request_id] = request_id
+        Thread.current[:active_rabbit_request_id] = request_id
         @request_queries[request_id] = []
         request_id
       end
@@ -55,13 +55,13 @@ module ActiveAgent
         return unless request_id
 
         analyze_request_queries(request_id)
-        Thread.current[:active_agent_request_id] = nil
+        Thread.current[:active_rabbit_request_id] = nil
       end
 
       private
 
       def current_request_id
-        Thread.current[:active_agent_request_id]
+        Thread.current[:active_rabbit_request_id]
       end
 
       def normalize_sql(sql)

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-RSpec.describe ActiveAgent::Client::PiiScrubber do
-  let(:configuration) { ActiveAgent::Client::Configuration.new }
+RSpec.describe ActiveRabbit::Client::PiiScrubber do
+  let(:configuration) { ActiveRabbit::Client::Configuration.new }
   let(:scrubber) { described_class.new(configuration) }
 
   describe "#scrub" do

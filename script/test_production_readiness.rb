@@ -14,16 +14,16 @@ puts "🚀 ActiveRabbit Production Readiness Test"
 puts "=" * 50
 
 # Test configuration
-TEST_API_KEY = ENV['ACTIVE_AGENT_API_KEY'] || 'test-key-for-validation'
-TEST_PROJECT_ID = ENV['ACTIVE_AGENT_PROJECT_ID'] || 'test-project'
-TEST_API_URL = ENV['ACTIVE_AGENT_API_URL'] || 'https://api.activerabbit.com'
+TEST_API_KEY = ENV['active_rabbit_API_KEY'] || 'test-key-for-validation'
+TEST_PROJECT_ID = ENV['active_rabbit_PROJECT_ID'] || 'test-project'
+TEST_API_URL = ENV['active_rabbit_API_URL'] || 'https://api.activerabbit.com'
 
 # Load the gem
 begin
-  require_relative '../lib/active_agent/client'
-  puts "✅ ActiveAgent gem loaded successfully"
+  require_relative '../lib/active_rabbit/client'
+  puts "✅ ActiveRabbit gem loaded successfully"
 rescue LoadError => e
-  puts "❌ Failed to load ActiveAgent gem: #{e.message}"
+  puts "❌ Failed to load ActiveRabbit gem: #{e.message}"
   exit 1
 end
 
@@ -32,7 +32,7 @@ puts "\n📋 Test 1: Configuration Validation"
 puts "-" * 30
 
 begin
-  ActiveAgent::Client.configure do |config|
+  ActiveRabbit::Client.configure do |config|
     config.api_key = TEST_API_KEY
     config.project_id = TEST_PROJECT_ID
     config.api_url = TEST_API_URL
@@ -42,10 +42,10 @@ begin
     config.enable_pii_scrubbing = true
   end
 
-  if ActiveAgent::Client.configured?
+  if ActiveRabbit::Client.configured?
     puts "✅ Configuration valid"
-    puts "   API URL: #{ActiveAgent::Client.configuration.api_url}"
-    puts "   Environment: #{ActiveAgent::Client.configuration.environment}"
+    puts "   API URL: #{ActiveRabbit::Client.configuration.api_url}"
+    puts "   Environment: #{ActiveRabbit::Client.configuration.environment}"
     puts "   Features enabled: Performance monitoring, N+1 detection, PII scrubbing"
   else
     puts "❌ Configuration invalid"
@@ -68,7 +68,7 @@ begin
     "/app/models/test_model.rb:15:in `test_method'"
   ])
 
-  ActiveAgent::Client.track_exception(
+  ActiveRabbit::Client.track_exception(
     test_exception,
     context: {
       test: true,
@@ -83,12 +83,12 @@ begin
   puts "✅ Exception tracking successful"
 
   # Test exception filtering
-  ActiveAgent::Client.configuration.ignored_exceptions = ['TestIgnoredException']
+  ActiveRabbit::Client.configuration.ignored_exceptions = ['TestIgnoredException']
   ignored_exception = StandardError.new("This should be ignored")
   ignored_exception.define_singleton_method(:class) { TestIgnoredException }
 
   # This should be ignored (no error means it worked)
-  ActiveAgent::Client.track_exception(ignored_exception)
+  ActiveRabbit::Client.track_exception(ignored_exception)
   puts "✅ Exception filtering working"
 
 rescue => e
@@ -101,12 +101,12 @@ puts "\n📊 Test 3: Event Tracking"
 puts "-" * 30
 
 begin
-  ActiveAgent::Client.track_event(
+  ActiveRabbit::Client.track_event(
     'production_readiness_test',
     {
       test_type: 'production_validation',
       timestamp: Time.current.iso8601,
-      version: ActiveAgent::Client::VERSION,
+      version: ActiveRabbit::Client::VERSION,
       ruby_version: RUBY_VERSION,
       platform: RUBY_PLATFORM
     },
@@ -123,7 +123,7 @@ puts "-" * 30
 
 begin
   # Test direct performance tracking
-  ActiveAgent::Client.track_performance(
+  ActiveRabbit::Client.track_performance(
     'production_test_operation',
     250.5,
     metadata: {
@@ -135,7 +135,7 @@ begin
   puts "✅ Performance tracking successful"
 
   # Test block-based measurement
-  result = ActiveAgent::Client.performance_monitor.measure('test_calculation') do
+  result = ActiveRabbit::Client.performance_monitor.measure('test_calculation') do
     # Simulate some work
     sleep(0.1)
     (1..1000).sum
@@ -143,12 +143,12 @@ begin
   puts "✅ Block-based measurement successful (result: #{result})"
 
   # Test transaction tracking
-  transaction_id = ActiveAgent::Client.performance_monitor.start_transaction(
+  transaction_id = ActiveRabbit::Client.performance_monitor.start_transaction(
     'test_transaction',
     metadata: { test: true }
   )
   sleep(0.05)
-  ActiveAgent::Client.performance_monitor.finish_transaction(
+  ActiveRabbit::Client.performance_monitor.finish_transaction(
     transaction_id,
     additional_metadata: { status: 'completed' }
   )
@@ -174,7 +174,7 @@ begin
     }
   }
 
-  scrubber = ActiveAgent::Client::PiiScrubber.new(ActiveAgent::Client.configuration)
+  scrubber = ActiveRabbit::Client::PiiScrubber.new(ActiveRabbit::Client.configuration)
   scrubbed = scrubber.scrub(test_data)
 
   if scrubbed[:user_email] == '[FILTERED]' &&
@@ -199,7 +199,7 @@ puts "-" * 30
 begin
   # Test multiple events to trigger batching
   10.times do |i|
-    ActiveAgent::Client.track_event(
+    ActiveRabbit::Client.track_event(
       'batch_test_event',
       { index: i, batch_test: true },
       user_id: "batch-test-user-#{i}"
@@ -208,7 +208,7 @@ begin
   puts "✅ Batch event generation successful"
 
   # Force flush to test HTTP client
-  ActiveAgent::Client.flush
+  ActiveRabbit::Client.flush
   puts "✅ Batch flush successful"
 
 rescue => e
@@ -231,15 +231,15 @@ begin
     end
   end
 
-  # Performance with ActiveAgent tracking
+  # Performance with ActiveRabbit tracking
   tracking_time = Benchmark.measure do
     iterations.times do |i|
-      # Same work plus ActiveAgent tracking
+      # Same work plus ActiveRabbit tracking
       data = { user_id: i, action: 'test' }
       JSON.generate(data)
 
       # Add tracking (this will be queued, not sent immediately)
-      ActiveAgent::Client.track_event('performance_test', data)
+      ActiveRabbit::Client.track_event('performance_test', data)
     end
   end
 
@@ -269,28 +269,28 @@ puts "-" * 30
 
 begin
   # Test with invalid configuration
-  original_api_key = ActiveAgent::Client.configuration.api_key
-  ActiveAgent::Client.configuration.api_key = nil
+  original_api_key = ActiveRabbit::Client.configuration.api_key
+  ActiveRabbit::Client.configuration.api_key = nil
 
   # This should not crash
-  ActiveAgent::Client.track_event('resilience_test', { test: true })
+  ActiveRabbit::Client.track_event('resilience_test', { test: true })
   puts "✅ Handles invalid configuration gracefully"
 
   # Restore configuration
-  ActiveAgent::Client.configuration.api_key = original_api_key
+  ActiveRabbit::Client.configuration.api_key = original_api_key
 
   # Test with network issues (if using real API)
   if TEST_API_KEY != 'test-key-for-validation'
     # Temporarily break the URL to test resilience
-    original_url = ActiveAgent::Client.configuration.api_url
-    ActiveAgent::Client.configuration.api_url = 'https://invalid-url-that-does-not-exist.com'
+    original_url = ActiveRabbit::Client.configuration.api_url
+    ActiveRabbit::Client.configuration.api_url = 'https://invalid-url-that-does-not-exist.com'
 
     # This should not crash the application
-    ActiveAgent::Client.track_exception(StandardError.new('Resilience test'))
+    ActiveRabbit::Client.track_exception(StandardError.new('Resilience test'))
     puts "✅ Handles network failures gracefully"
 
     # Restore URL
-    ActiveAgent::Client.configuration.api_url = original_url
+    ActiveRabbit::Client.configuration.api_url = original_url
   else
     puts "✅ Network resilience test skipped (using test configuration)"
   end
@@ -312,19 +312,19 @@ begin
 
   # Generate many events and exceptions
   500.times do |i|
-    ActiveAgent::Client.track_event("memory_test_#{i}", { index: i, data: 'x' * 100 })
+    ActiveRabbit::Client.track_event("memory_test_#{i}", { index: i, data: 'x' * 100 })
 
     if i % 10 == 0
       begin
         raise StandardError, "Memory test exception #{i}"
       rescue => e
-        ActiveAgent::Client.track_exception(e, context: { index: i })
+        ActiveRabbit::Client.track_exception(e, context: { index: i })
       end
     end
   end
 
   # Flush everything
-  ActiveAgent::Client.flush
+  ActiveRabbit::Client.flush
 
   # Force garbage collection
   GC.start
@@ -357,10 +357,10 @@ puts "-" * 30
 
 begin
   # Add some final events
-  ActiveAgent::Client.track_event('shutdown_test', { final: true })
+  ActiveRabbit::Client.track_event('shutdown_test', { final: true })
 
   # Test graceful shutdown
-  ActiveAgent::Client.shutdown
+  ActiveRabbit::Client.shutdown
   puts "✅ Graceful shutdown successful"
 
 rescue => e
@@ -374,7 +374,7 @@ puts "=" * 50
 
 if TEST_API_KEY == 'test-key-for-validation'
   puts "⚠️  Note: Tests run with mock configuration"
-  puts "   Set ACTIVE_AGENT_API_KEY and ACTIVE_AGENT_PROJECT_ID"
+  puts "   Set active_rabbit_API_KEY and active_rabbit_PROJECT_ID"
   puts "   environment variables for full integration testing"
 else
   puts "✅ Full integration test completed with real API"
@@ -393,7 +393,7 @@ puts "   ✅ Error resilience verified"
 puts "   ✅ Memory usage acceptable"
 puts "   ✅ Graceful shutdown works"
 
-puts "\n🚀 ActiveAgent is ready for production deployment!"
+puts "\n🚀 ActiveRabbit is ready for production deployment!"
 puts "\nNext steps:"
 puts "1. Deploy to staging environment"
 puts "2. Run integration tests with your Rails app"

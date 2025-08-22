@@ -48,15 +48,15 @@ RSpec.configure do |config|
   config.infer_spec_type_from_file_location!
   config.filter_rails_from_backtrace!
 
-  # Reset ActiveAgent configuration before each test
+  # Reset ActiveRabbit configuration before each test
   config.before(:each) do
-    ActiveAgent::Client.configuration = nil
-    Thread.current[:active_agent_request_context] = nil
+    ActiveRabbit::Client.configuration = nil
+    Thread.current[:active_rabbit_request_context] = nil
   end
 
   config.after(:each) do
-    ActiveAgent::Client.configuration = nil
-    Thread.current[:active_agent_request_context] = nil
+    ActiveRabbit::Client.configuration = nil
+    Thread.current[:active_rabbit_request_context] = nil
   end
 end
 ```
@@ -65,11 +65,11 @@ end
 
 ### Test Configuration
 ```ruby
-# spec/active_agent/configuration_spec.rb
-RSpec.describe ActiveAgent::Client::Configuration do
+# spec/active_rabbit/configuration_spec.rb
+RSpec.describe ActiveRabbit::Client::Configuration do
   describe "environment variable loading" do
     it "loads API key from environment" do
-      allow(ENV).to receive(:[]).with("ACTIVE_AGENT_API_KEY").and_return("test-key")
+      allow(ENV).to receive(:[]).with("active_rabbit_API_KEY").and_return("test-key")
       config = described_class.new
       expect(config.api_key).to eq("test-key")
     end
@@ -88,10 +88,10 @@ end
 
 ### Test Exception Tracking
 ```ruby
-# spec/active_agent/exception_tracker_spec.rb
-RSpec.describe ActiveAgent::Client::ExceptionTracker do
-  let(:configuration) { ActiveAgent::Client::Configuration.new }
-  let(:http_client) { instance_double(ActiveAgent::Client::HttpClient) }
+# spec/active_rabbit/exception_tracker_spec.rb
+RSpec.describe ActiveRabbit::Client::ExceptionTracker do
+  let(:configuration) { ActiveRabbit::Client::Configuration.new }
+  let(:http_client) { instance_double(ActiveRabbit::Client::HttpClient) }
   let(:tracker) { described_class.new(configuration, http_client) }
   let(:exception) { StandardError.new("Test error") }
 
@@ -139,9 +139,9 @@ end
 
 ### Test PII Scrubbing
 ```ruby
-# spec/active_agent/pii_scrubber_spec.rb
-RSpec.describe ActiveAgent::Client::PiiScrubber do
-  let(:configuration) { ActiveAgent::Client::Configuration.new }
+# spec/active_rabbit/pii_scrubber_spec.rb
+RSpec.describe ActiveRabbit::Client::PiiScrubber do
+  let(:configuration) { ActiveRabbit::Client::Configuration.new }
   let(:scrubber) { described_class.new(configuration) }
 
   describe "#scrub" do
@@ -169,7 +169,7 @@ end
 # spec/integration/rails_integration_spec.rb
 RSpec.describe "Rails Integration", type: :request do
   before do
-    ActiveAgent::Client.configure do |config|
+    ActiveRabbit::Client.configure do |config|
       config.api_key = "test-api-key"
       config.project_id = "test-project"
     end
@@ -178,7 +178,7 @@ RSpec.describe "Rails Integration", type: :request do
   describe "exception middleware" do
     it "captures unhandled exceptions" do
       # Stub the API call
-      stub_request(:post, "https://api.activeagent.com/api/v1/exceptions")
+      stub_request(:post, "https://api.activerabbit.com/api/v1/exceptions")
         .to_return(status: 200, body: '{"status":"ok"}')
 
       # Create a route that raises an exception
@@ -191,7 +191,7 @@ RSpec.describe "Rails Integration", type: :request do
       }.to raise_error(StandardError, "Test error")
 
       # Verify the API was called
-      expect(WebMock).to have_requested(:post, "https://api.activeagent.com/api/v1/exceptions")
+      expect(WebMock).to have_requested(:post, "https://api.activerabbit.com/api/v1/exceptions")
         .with(body: hash_including(
           type: "StandardError",
           message: "Test error"
@@ -201,12 +201,12 @@ RSpec.describe "Rails Integration", type: :request do
 
   describe "performance monitoring" do
     it "tracks controller performance" do
-      stub_request(:post, "https://api.activeagent.com/api/v1/performance")
+      stub_request(:post, "https://api.activerabbit.com/api/v1/performance")
         .to_return(status: 200, body: '{"status":"ok"}')
 
       get '/some_endpoint'
 
-      expect(WebMock).to have_requested(:post, "https://api.activeagent.com/api/v1/performance")
+      expect(WebMock).to have_requested(:post, "https://api.activerabbit.com/api/v1/performance")
     end
   end
 end
@@ -223,12 +223,12 @@ RSpec.describe ApplicationController, type: :controller do
   end
 
   before do
-    ActiveAgent::Client.configure do |config|
+    ActiveRabbit::Client.configure do |config|
       config.api_key = "test-key"
       config.project_id = "test-project"
     end
 
-    stub_request(:post, /api\.activeagent\.com/)
+    stub_request(:post, /api\.activerabbit\.com/)
       .to_return(status: 200, body: '{"status":"ok"}')
   end
 
@@ -237,7 +237,7 @@ RSpec.describe ApplicationController, type: :controller do
       get :index
     }.to raise_error(StandardError)
 
-    expect(WebMock).to have_requested(:post, "https://api.activeagent.com/api/v1/exceptions")
+    expect(WebMock).to have_requested(:post, "https://api.activerabbit.com/api/v1/exceptions")
       .with { |req|
         body = JSON.parse(req.body)
         body["context"]["request"]["method"] == "GET"
@@ -253,7 +253,7 @@ end
 # spec/features/error_tracking_spec.rb
 RSpec.describe "Error Tracking Flow", type: :feature do
   before do
-    ActiveAgent::Client.configure do |config|
+    ActiveRabbit::Client.configure do |config|
       config.api_key = "test-key"
       config.project_id = "test-project"
     end
@@ -261,7 +261,7 @@ RSpec.describe "Error Tracking Flow", type: :feature do
 
   scenario "user triggers an error and it gets tracked" do
     # Stub API calls
-    exception_stub = stub_request(:post, "https://api.activeagent.com/api/v1/exceptions")
+    exception_stub = stub_request(:post, "https://api.activerabbit.com/api/v1/exceptions")
       .to_return(status: 200, body: '{"status":"ok"}')
 
     # Create a user and simulate an error condition
@@ -285,14 +285,14 @@ end
 # spec/features/n_plus_one_detection_spec.rb
 RSpec.describe "N+1 Query Detection", type: :feature do
   before do
-    ActiveAgent::Client.configure do |config|
+    ActiveRabbit::Client.configure do |config|
       config.api_key = "test-key"
       config.enable_n_plus_one_detection = true
     end
   end
 
   scenario "detects N+1 queries" do
-    event_stub = stub_request(:post, "https://api.activeagent.com/api/v1/events")
+    event_stub = stub_request(:post, "https://api.activerabbit.com/api/v1/events")
       .to_return(status: 200, body: '{"status":"ok"}')
 
     # Create test data that will cause N+1
@@ -315,32 +315,32 @@ end
 
 ### Test Performance Impact
 ```ruby
-# spec/performance/activeagent_performance_spec.rb
-RSpec.describe "ActiveAgent Performance Impact" do
+# spec/performance/activerabbit_performance_spec.rb
+RSpec.describe "ActiveRabbit Performance Impact" do
   let(:iterations) { 100 }
 
   it "has minimal impact on request processing time" do
-    # Baseline without ActiveAgent
+    # Baseline without ActiveRabbit
     baseline_time = Benchmark.measure do
       iterations.times { make_test_request }
     end
 
-    # Configure ActiveAgent
-    ActiveAgent::Client.configure do |config|
+    # Configure ActiveRabbit
+    ActiveRabbit::Client.configure do |config|
       config.api_key = "test-key"
       config.project_id = "test-project"
     end
 
-    stub_request(:post, /api\.activeagent\.com/)
+    stub_request(:post, /api\.activerabbit\.com/)
       .to_return(status: 200, body: '{"status":"ok"}')
 
-    # Time with ActiveAgent
-    activeagent_time = Benchmark.measure do
+    # Time with ActiveRabbit
+    activerabbit_time = Benchmark.measure do
       iterations.times { make_test_request }
     end
 
     # Performance impact should be minimal (< 5%)
-    impact_percentage = ((activeagent_time.real - baseline_time.real) / baseline_time.real) * 100
+    impact_percentage = ((activerabbit_time.real - baseline_time.real) / baseline_time.real) * 100
     expect(impact_percentage).to be < 5
   end
 
@@ -357,11 +357,11 @@ end
 # spec/performance/memory_usage_spec.rb
 RSpec.describe "Memory Usage" do
   it "doesn't cause memory leaks" do
-    ActiveAgent::Client.configure do |config|
+    ActiveRabbit::Client.configure do |config|
       config.api_key = "test-key"
     end
 
-    stub_request(:post, /api\.activeagent\.com/)
+    stub_request(:post, /api\.activerabbit\.com/)
       .to_return(status: 200, body: '{"status":"ok"}')
 
     # Measure initial memory
@@ -373,12 +373,12 @@ RSpec.describe "Memory Usage" do
       begin
         raise StandardError, "Test error #{i}"
       rescue => e
-        ActiveAgent::Client.track_exception(e)
+        ActiveRabbit::Client.track_exception(e)
       end
     end
 
     # Force cleanup
-    ActiveAgent::Client.flush
+    ActiveRabbit::Client.flush
     GC.start
 
     # Measure final memory
@@ -398,13 +398,13 @@ end
 # spec/load/high_volume_spec.rb
 RSpec.describe "High Volume Testing" do
   before do
-    ActiveAgent::Client.configure do |config|
+    ActiveRabbit::Client.configure do |config|
       config.api_key = "test-key"
       config.batch_size = 10
       config.flush_interval = 1
     end
 
-    stub_request(:post, /api\.activeagent\.com/)
+    stub_request(:post, /api\.activerabbit\.com/)
       .to_return(status: 200, body: '{"status":"ok"}')
   end
 
@@ -418,7 +418,7 @@ RSpec.describe "High Volume Testing" do
           begin
             raise StandardError, "High volume error #{i}"
           rescue => e
-            ActiveAgent::Client.track_exception(e)
+            ActiveRabbit::Client.track_exception(e)
           end
           sleep(0.01) # Small delay to simulate real usage
         end
@@ -426,10 +426,10 @@ RSpec.describe "High Volume Testing" do
     end
 
     threads.each(&:join)
-    ActiveAgent::Client.flush
+    ActiveRabbit::Client.flush
 
     # Verify all requests were batched and sent
-    expect(WebMock).to have_requested(:post, /api\.activeagent\.com/).at_least_times(100)
+    expect(WebMock).to have_requested(:post, /api\.activerabbit\.com/).at_least_times(100)
   end
 end
 ```
@@ -439,7 +439,7 @@ end
 # spec/resilience/api_failure_spec.rb
 RSpec.describe "API Failure Resilience" do
   before do
-    ActiveAgent::Client.configure do |config|
+    ActiveRabbit::Client.configure do |config|
       config.api_key = "test-key"
       config.retry_count = 2
     end
@@ -447,27 +447,27 @@ RSpec.describe "API Failure Resilience" do
 
   it "handles API failures gracefully" do
     # Stub API to fail initially, then succeed
-    stub_request(:post, /api\.activeagent\.com/)
+    stub_request(:post, /api\.activerabbit\.com/)
       .to_return(status: 500).times(2)
       .then.to_return(status: 200, body: '{"status":"ok"}')
 
     # This should not raise an error
     expect {
-      ActiveAgent::Client.track_exception(StandardError.new("Test"))
+      ActiveRabbit::Client.track_exception(StandardError.new("Test"))
     }.not_to raise_error
 
     # Verify retries were attempted
-    expect(WebMock).to have_requested(:post, /api\.activeagent\.com/).times(3)
+    expect(WebMock).to have_requested(:post, /api\.activerabbit\.com/).times(3)
   end
 
   it "doesn't crash app when API is completely down" do
-    stub_request(:post, /api\.activeagent\.com/)
+    stub_request(:post, /api\.activerabbit\.com/)
       .to_return(status: 500)
 
-    # App should continue working even if ActiveAgent API is down
+    # App should continue working even if ActiveRabbit API is down
     expect {
       100.times do
-        ActiveAgent::Client.track_exception(StandardError.new("Test"))
+        ActiveRabbit::Client.track_exception(StandardError.new("Test"))
       end
     }.not_to raise_error
   end
@@ -478,20 +478,20 @@ end
 
 ### Test Script for Manual Verification
 ```ruby
-# script/test_activeagent.rb
+# script/test_activerabbit.rb
 #!/usr/bin/env ruby
 
-puts "🧪 Testing ActiveAgent Integration..."
+puts "🧪 Testing ActiveRabbit Integration..."
 
 # Test 1: Configuration
 puts "\n1. Testing Configuration..."
-ActiveAgent::Client.configure do |config|
-  config.api_key = ENV['ACTIVE_AGENT_API_KEY'] || 'test-key'
-  config.project_id = ENV['ACTIVE_AGENT_PROJECT_ID'] || 'test-project'
+ActiveRabbit::Client.configure do |config|
+  config.api_key = ENV['active_rabbit_API_KEY'] || 'test-key'
+  config.project_id = ENV['active_rabbit_PROJECT_ID'] || 'test-project'
   config.environment = 'test'
 end
 
-if ActiveAgent::Client.configured?
+if ActiveRabbit::Client.configured?
   puts "✅ Configuration successful"
 else
   puts "❌ Configuration failed"
@@ -501,15 +501,15 @@ end
 # Test 2: Exception Tracking
 puts "\n2. Testing Exception Tracking..."
 begin
-  raise StandardError, "Test exception for ActiveAgent"
+  raise StandardError, "Test exception for ActiveRabbit"
 rescue => e
-  ActiveAgent::Client.track_exception(e, context: { test: true })
+  ActiveRabbit::Client.track_exception(e, context: { test: true })
   puts "✅ Exception tracked"
 end
 
 # Test 3: Event Tracking
 puts "\n3. Testing Event Tracking..."
-ActiveAgent::Client.track_event(
+ActiveRabbit::Client.track_event(
   'test_event',
   { component: 'test_script', timestamp: Time.current },
   user_id: 'test-user'
@@ -518,7 +518,7 @@ puts "✅ Event tracked"
 
 # Test 4: Performance Tracking
 puts "\n4. Testing Performance Tracking..."
-ActiveAgent::Client.track_performance(
+ActiveRabbit::Client.track_performance(
   'test_operation',
   150.5,
   metadata: { test: true }
@@ -527,11 +527,11 @@ puts "✅ Performance tracked"
 
 # Test 5: Flush and Shutdown
 puts "\n5. Testing Flush and Shutdown..."
-ActiveAgent::Client.flush
-ActiveAgent::Client.shutdown
+ActiveRabbit::Client.flush
+ActiveRabbit::Client.shutdown
 puts "✅ Flush and shutdown successful"
 
-puts "\n🎉 All tests passed! ActiveAgent is ready for production."
+puts "\n🎉 All tests passed! ActiveRabbit is ready for production."
 ```
 
 ## 📋 Running the Tests
@@ -542,7 +542,7 @@ puts "\n🎉 All tests passed! ActiveAgent is ready for production."
 bundle exec rspec
 
 # Run specific test types
-bundle exec rspec spec/active_agent/          # Unit tests
+bundle exec rspec spec/active_rabbit/          # Unit tests
 bundle exec rspec spec/integration/           # Integration tests
 bundle exec rspec spec/features/              # End-to-end tests
 bundle exec rspec spec/performance/           # Performance tests
@@ -551,13 +551,13 @@ bundle exec rspec spec/performance/           # Performance tests
 COVERAGE=true bundle exec rspec
 
 # Run manual test script
-ruby script/test_activeagent.rb
+ruby script/test_activerabbit.rb
 ```
 
 ### CI/CD Integration
 ```yaml
 # .github/workflows/test.yml
-name: Test ActiveAgent Integration
+name: Test ActiveRabbit Integration
 
 on: [push, pull_request]
 
@@ -576,10 +576,10 @@ jobs:
     - name: Run tests
       run: |
         bundle exec rspec
-        ruby script/test_activeagent.rb
+        ruby script/test_activerabbit.rb
       env:
-        ACTIVE_AGENT_API_KEY: ${{ secrets.ACTIVE_AGENT_API_KEY }}
-        ACTIVE_AGENT_PROJECT_ID: ${{ secrets.ACTIVE_AGENT_PROJECT_ID }}
+        active_rabbit_API_KEY: ${{ secrets.active_rabbit_API_KEY }}
+        active_rabbit_PROJECT_ID: ${{ secrets.active_rabbit_PROJECT_ID }}
 ```
 
-This comprehensive testing approach ensures your Rails application and ActiveAgent gem integration is thoroughly tested before production deployment, covering functionality, performance, and resilience scenarios.
+This comprehensive testing approach ensures your Rails application and ActiveRabbit gem integration is thoroughly tested before production deployment, covering functionality, performance, and resilience scenarios.

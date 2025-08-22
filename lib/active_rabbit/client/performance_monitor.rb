@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module ActiveAgent
+module ActiveRabbit
   module Client
     class PerformanceMonitor
       attr_reader :configuration, :http_client
@@ -91,8 +91,8 @@ module ActiveAgent
         data[:performance_context] = build_performance_context
 
         # Add request context if available
-        if defined?(Thread) && Thread.current[:active_agent_request_context]
-          data[:request_context] = Thread.current[:active_agent_request_context]
+        if defined?(Thread) && Thread.current[:active_rabbit_request_context]
+          data[:request_context] = Thread.current[:active_rabbit_request_context]
         end
 
         data

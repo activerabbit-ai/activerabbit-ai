@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "active_agent/client"
+require "active_rabbit/client"
 
 RSpec.configure do |config|
   # Enable flags like --only-failures and --next-failure

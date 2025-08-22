@@ -2,15 +2,15 @@
 
 # Example Rails integration for ActiveRabbit::Client
 
-# config/initializers/active_agent.rb
-ActiveAgent::Client.configure do |config|
+# config/initializers/active_rabbit.rb
+ActiveRabbit::Client.configure do |config|
   # Required configuration
-  config.api_key = ENV['ACTIVE_AGENT_API_KEY']
-  config.project_id = ENV['ACTIVE_AGENT_PROJECT_ID']
+  config.api_key = ENV['active_rabbit_API_KEY']
+  config.project_id = ENV['active_rabbit_PROJECT_ID']
   config.environment = Rails.env
 
   # Optional configuration
-  config.api_url = ENV.fetch('ACTIVE_AGENT_API_URL', 'https://api.activeagent.com')
+  config.api_url = ENV.fetch('active_rabbit_API_URL', 'https://api.activerabbit.com')
   config.release = ENV['HEROKU_SLUG_COMMIT'] || `git rev-parse HEAD`.chomp
 
   # Performance settings
@@ -72,17 +72,17 @@ end
 
 # app/controllers/application_controller.rb
 class ApplicationController < ActionController::Base
-  before_action :set_active_agent_context
+  before_action :set_active_rabbit_context
 
   private
 
-  def set_active_agent_context
-    # Set current user for ActiveAgent context
+  def set_active_rabbit_context
+    # Set current user for ActiveRabbit context
     Thread.current[:current_user] = current_user
 
     # Add additional request context
-    if Thread.current[:active_agent_request_context]
-      Thread.current[:active_agent_request_context].merge!(
+    if Thread.current[:active_rabbit_request_context]
+      Thread.current[:active_rabbit_request_context].merge!(
         user_id: current_user&.id,
         user_plan: current_user&.plan,
         tenant_id: current_tenant&.id
@@ -99,7 +99,7 @@ class OrdersController < ApplicationController
       @order = Order.create!(order_params)
 
       # Track successful order creation
-      ActiveAgent::Client.track_event(
+      ActiveRabbit::Client.track_event(
         'order_created',
         {
           order_id: @order.id,
@@ -113,7 +113,7 @@ class OrdersController < ApplicationController
       redirect_to @order, notice: 'Order was successfully created.'
     rescue PaymentProcessor::Error => e
       # Track payment errors with additional context
-      ActiveAgent::Client.track_exception(
+      ActiveRabbit::Client.track_exception(
         e,
         context: {
           order_params: order_params.to_h,
@@ -132,7 +132,7 @@ class OrdersController < ApplicationController
 
   def show
     # Performance monitoring for complex operations
-    @order = ActiveAgent::Client.performance_monitor.measure('order_loading') do
+    @order = ActiveRabbit::Client.performance_monitor.measure('order_loading') do
       Order.includes(:items, :customer, :shipping_address).find(params[:id])
     end
   end
@@ -152,7 +152,7 @@ class OrderProcessingJob < ApplicationJob
     # Sidekiq integration will automatically track this job
     # But you can add custom events for important milestones
 
-    ActiveAgent::Client.track_event(
+    ActiveRabbit::Client.track_event(
       'order_processing_started',
       { order_id: order.id },
       user_id: order.customer_id
@@ -163,7 +163,7 @@ class OrderProcessingJob < ApplicationJob
     charge_payment(order)
     send_confirmation_email(order)
 
-    ActiveAgent::Client.track_event(
+    ActiveRabbit::Client.track_event(
       'order_processing_completed',
       {
         order_id: order.id,
@@ -177,7 +177,7 @@ class OrderProcessingJob < ApplicationJob
 
   def process_inventory(order)
     # Custom performance tracking
-    ActiveAgent::Client.track_performance(
+    ActiveRabbit::Client.track_performance(
       'inventory_processing',
       measure_time { update_inventory_levels(order) },
       metadata: {
@@ -205,7 +205,7 @@ class Order < ApplicationRecord
   private
 
   def track_creation
-    ActiveAgent::Client.track_event(
+    ActiveRabbit::Client.track_event(
       'model_order_created',
       {
         id: id,
@@ -217,7 +217,7 @@ class Order < ApplicationRecord
 
   def track_status_changes
     if saved_change_to_status?
-      ActiveAgent::Client.track_event(
+      ActiveRabbit::Client.track_event(
         'order_status_changed',
         {
           order_id: id,
@@ -234,10 +234,10 @@ end
 Rails.application.configure do
   # ... other configuration ...
 
-  # Ensure ActiveAgent client shuts down gracefully
+  # Ensure ActiveRabbit client shuts down gracefully
   config.after_initialize do
     at_exit do
-      ActiveAgent::Client.shutdown if ActiveAgent::Client.configured?
+      ActiveRabbit::Client.shutdown if ActiveRabbit::Client.configured?
     end
   end
 end

@@ -3,25 +3,25 @@
 require "rails/railtie"
 require "securerandom"
 
-module ActiveAgent
+module ActiveRabbit
   module Client
     class Railtie < Rails::Railtie
-      config.active_agent = ActiveSupport::OrderedOptions.new
+      config.active_rabbit = ActiveSupport::OrderedOptions.new
 
-      initializer "active_agent.configure" do |app|
-        # Configure ActiveAgent from Rails configuration
-        ActiveAgent::Client.configure do |config|
+      initializer "active_rabbit.configure" do |app|
+        # Configure ActiveRabbit from Rails configuration
+        ActiveRabbit::Client.configure do |config|
           config.environment = Rails.env
           config.logger = Rails.logger
           config.release = detect_release(app)
         end
 
         # Set up exception tracking
-        setup_exception_tracking(app) if ActiveAgent::Client.configured?
+        setup_exception_tracking(app) if ActiveRabbit::Client.configured?
       end
 
-      initializer "active_agent.subscribe_to_notifications" do
-        next unless ActiveAgent::Client.configured?
+      initializer "active_rabbit.subscribe_to_notifications" do
+        next unless ActiveRabbit::Client.configured?
 
         # Subscribe to Action Controller events
         subscribe_to_controller_events
@@ -34,10 +34,13 @@ module ActiveAgent
 
         # Subscribe to Action Mailer events (if available)
         subscribe_to_action_mailer_events if defined?(ActionMailer)
+
+        # Subscribe to exception notifications
+        subscribe_to_exception_notifications
       end
 
-      initializer "active_agent.add_middleware" do |app|
-        next unless ActiveAgent::Client.configured?
+      initializer "active_rabbit.add_middleware" do |app|
+        next unless ActiveRabbit::Client.configured?
 
         # Add request context middleware
         app.middleware.insert_before ActionDispatch::ShowExceptions, RequestContextMiddleware
@@ -60,7 +63,7 @@ module ActiveAgent
           begin
             duration_ms = ((finished - started) * 1000).round(2)
 
-            ActiveAgent::Client.track_performance(
+            ActiveRabbit::Client.track_performance(
               "controller.action",
               duration_ms,
               metadata: {
@@ -77,7 +80,7 @@ module ActiveAgent
 
             # Track slow requests
             if duration_ms > 1000 # Slower than 1 second
-              ActiveAgent::Client.track_event(
+              ActiveRabbit::Client.track_event(
                 "slow_request",
                 {
                   controller: payload[:controller],
@@ -89,7 +92,7 @@ module ActiveAgent
               )
             end
           rescue => e
-            Rails.logger.error "[ActiveAgent] Error tracking controller action: #{e.message}"
+            Rails.logger.error "[ActiveRabbit] Error tracking controller action: #{e.message}"
           end
         end
       end
@@ -103,7 +106,7 @@ module ActiveAgent
             duration_ms = ((finished - started) * 1000).round(2)
 
             # Track query for N+1 detection
-            if ActiveAgent::Client.configuration.enable_n_plus_one_detection
+            if ActiveRabbit::Client.configuration.enable_n_plus_one_detection
               n_plus_one_detector.track_query(
                 payload[:sql],
                 payload[:bindings],
@@ -114,7 +117,7 @@ module ActiveAgent
 
             # Track slow queries
             if duration_ms > 100 # Slower than 100ms
-              ActiveAgent::Client.track_event(
+              ActiveRabbit::Client.track_event(
                 "slow_query",
                 {
                   sql: payload[:sql],
@@ -124,7 +127,7 @@ module ActiveAgent
               )
             end
           rescue => e
-            Rails.logger.error "[ActiveAgent] Error tracking SQL query: #{e.message}"
+            Rails.logger.error "[ActiveRabbit] Error tracking SQL query: #{e.message}"
           end
         end
       end
@@ -136,7 +139,7 @@ module ActiveAgent
 
             # Track slow template renders
             if duration_ms > 50 # Slower than 50ms
-              ActiveAgent::Client.track_event(
+              ActiveRabbit::Client.track_event(
                 "slow_template_render",
                 {
                   template: payload[:identifier],
@@ -146,7 +149,7 @@ module ActiveAgent
               )
             end
           rescue => e
-            Rails.logger.error "[ActiveAgent] Error tracking template render: #{e.message}"
+            Rails.logger.error "[ActiveRabbit] Error tracking template render: #{e.message}"
           end
         end
       end
@@ -156,7 +159,7 @@ module ActiveAgent
           begin
             duration_ms = ((finished - started) * 1000).round(2)
 
-            ActiveAgent::Client.track_event(
+            ActiveRabbit::Client.track_event(
               "email_sent",
               {
                 mailer: payload[:mailer],
@@ -165,8 +168,35 @@ module ActiveAgent
               }
             )
           rescue => e
-            Rails.logger.error "[ActiveAgent] Error tracking email delivery: #{e.message}"
+            Rails.logger.error "[ActiveRabbit] Error tracking email delivery: #{e.message}"
           end
+        end
+      end
+
+      def subscribe_to_exception_notifications
+        # Subscribe to Rails exception notifications
+        ActiveSupport::Notifications.subscribe "process_action.action_controller" do |name, started, finished, unique_id, data|
+          next unless ActiveRabbit::Client.configured?
+          next unless data[:exception]
+
+          exception_class, exception_message = data[:exception]
+          exception = exception_class.constantize.new(exception_message)
+
+          puts "[ActiveRabbit] Exception notification received: #{exception_class}: #{exception_message}"
+
+          ActiveRabbit::Client.track_exception(
+            exception,
+            context: {
+              request: {
+                method: data[:method],
+                path: data[:path],
+                controller: data[:controller],
+                action: data[:action],
+                status: data[:status],
+                format: data[:format]
+              }
+            }
+          )
         end
       end
 
@@ -175,7 +205,7 @@ module ActiveAgent
         ENV["HEROKU_SLUG_COMMIT"] ||
           ENV["GITHUB_SHA"] ||
           ENV["GITLAB_COMMIT_SHA"] ||
-          app.config.active_agent.release ||
+          app.config.active_rabbit.release ||
           detect_git_sha
       end
 
@@ -188,7 +218,7 @@ module ActiveAgent
       end
 
       def n_plus_one_detector
-        @n_plus_one_detector ||= NPlusOneDetector.new(ActiveAgent::Client.configuration)
+        @n_plus_one_detector ||= NPlusOneDetector.new(ActiveRabbit::Client.configuration)
       end
     end
 
@@ -206,7 +236,7 @@ module ActiveAgent
 
         # Set request context
         request_context = build_request_context(request)
-        Thread.current[:active_agent_request_context] = request_context
+        Thread.current[:active_rabbit_request_context] = request_context
 
         # Start N+1 detection for this request
         request_id = SecureRandom.uuid
@@ -216,7 +246,7 @@ module ActiveAgent
           @app.call(env)
         ensure
           # Clean up request context
-          Thread.current[:active_agent_request_context] = nil
+          Thread.current[:active_rabbit_request_context] = nil
           n_plus_one_detector.finish_request(request_id)
         end
       end
@@ -226,7 +256,7 @@ module ActiveAgent
       def should_skip_request?(request)
         # Skip requests from ignored user agents
         user_agent = request.headers["User-Agent"]
-        return true if ActiveAgent::Client.configuration.should_ignore_user_agent?(user_agent)
+        return true if ActiveRabbit::Client.configuration.should_ignore_user_agent?(user_agent)
 
         # Skip asset requests
         return true if request.path.start_with?("/assets/")
@@ -250,7 +280,7 @@ module ActiveAgent
       end
 
       def n_plus_one_detector
-        @n_plus_one_detector ||= NPlusOneDetector.new(ActiveAgent::Client.configuration)
+        @n_plus_one_detector ||= NPlusOneDetector.new(ActiveRabbit::Client.configuration)
       end
     end
 
@@ -261,12 +291,14 @@ module ActiveAgent
       end
 
       def call(env)
+        puts "[ActiveRabbit] ExceptionMiddleware called for: #{env['REQUEST_METHOD']} #{env['PATH_INFO']}"
         @app.call(env)
       rescue Exception => exception
         # Track the exception
+        puts "[ActiveRabbit] ExceptionMiddleware caught: #{exception.class}: #{exception.message}"
         request = ActionDispatch::Request.new(env)
 
-        ActiveAgent::Client.track_exception(
+        ActiveRabbit::Client.track_exception(
           exception,
           context: {
             request: {
