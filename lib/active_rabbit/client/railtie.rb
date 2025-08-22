@@ -173,16 +173,24 @@ module ActiveRabbit
         end
       end
 
-      def subscribe_to_exception_notifications
+            def subscribe_to_exception_notifications
         # Subscribe to Rails exception notifications
         ActiveSupport::Notifications.subscribe "process_action.action_controller" do |name, started, finished, unique_id, data|
           next unless ActiveRabbit::Client.configured?
           next unless data[:exception]
 
           exception_class, exception_message = data[:exception]
-          exception = exception_class.constantize.new(exception_message)
 
           puts "[ActiveRabbit] Exception notification received: #{exception_class}: #{exception_message}"
+          puts "[ActiveRabbit] Available data keys: #{data.keys.inspect}"
+
+          # Create exception with proper backtrace
+          exception = exception_class.constantize.new(exception_message)
+
+          # Try to get backtrace from the original exception if available
+          if data[:exception_object]
+            exception.set_backtrace(data[:exception_object].backtrace)
+          end
 
           ActiveRabbit::Client.track_exception(
             exception,
