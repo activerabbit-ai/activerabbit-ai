@@ -3,19 +3,19 @@
 require_relative "lib/active_rabbit/client/version"
 
 Gem::Specification.new do |spec|
-  spec.name = "active_rabbit-client"
+  spec.name = "activerabbit-ai"
   spec.version = ActiveRabbit::Client::VERSION
   spec.authors = ["Alex Shapalov"]
   spec.email = ["shapalov@gmail.com"]
 
-  spec.summary = "Ruby client for FixRabbit application monitoring and error tracking"
-  spec.description = "A comprehensive Ruby client for FixRabbit that provides error tracking, performance monitoring, and application observability for Rails applications."
+  spec.summary = "Ruby client for ActiveRabbit.ai application monitoring and error tracking"
+  spec.description = "A comprehensive Ruby client for ActiveRabbit.ai that provides error tracking, performance monitoring, and application observability for Rails applications."
   spec.homepage = "https://github.com/bugrabbit/active_rabbit-client"
+  spec.license = "MIT"
   spec.required_ruby_version = ">= 3.1.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
 
-  spec.metadata["homepage_uri"] = spec.homepage
   spec.metadata["source_code_uri"] = "https://github.com/bugrabbit/active_rabbit-client"
   spec.metadata["changelog_uri"] = "https://github.com/bugrabbit/active_rabbit-client/blob/main/CHANGELOG.md"
 
