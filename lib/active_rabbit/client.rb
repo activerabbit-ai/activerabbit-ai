@@ -79,6 +79,17 @@ module ActiveRabbit
         )
       end
 
+      # Test connection to ActiveRabbit API
+      def test_connection
+        return { success: false, error: "ActiveRabbit not configured" } unless configured?
+
+        begin
+          http_client.test_connection
+        rescue => e
+          { success: false, error: e.message }
+        end
+      end
+
       # Flush any pending events
       def flush
         return unless configured?

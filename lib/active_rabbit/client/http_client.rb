@@ -38,6 +38,16 @@ module ActiveRabbit
         make_request(:post, "api/v1/events/batch", { events: batch_data })
       end
 
+      def test_connection
+        response = make_request(:post, "api/v1/test/connection", { 
+          gem_version: ActiveRabbit::Client::VERSION,
+          timestamp: Time.now.iso8601
+        })
+        { success: true, data: response }
+      rescue => e
+        { success: false, error: e.message }
+      end
+
       def flush
         return if @request_queue.empty?
 
