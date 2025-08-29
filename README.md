@@ -1,6 +1,6 @@
-# ActiveRabbit::Client
+# ActiveRabbit AI Client
 
-Ruby client library for ActiveRabbit application monitoring and error tracking. This gem provides comprehensive monitoring capabilities including error tracking, performance monitoring, N+1 query detection, and more for Ruby applications, with special focus on Rails integration.
+Ruby client library for ActiveRabbit.ai application monitoring and error tracking. This gem provides comprehensive monitoring capabilities including error tracking, performance monitoring, N+1 query detection, and more for Ruby applications, with special focus on Rails integration.
 
 ## Features
 
@@ -18,7 +18,7 @@ Ruby client library for ActiveRabbit application monitoring and error tracking. 
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'active_rabbit-client'
+gem 'activerabbit-ai'
 ```
 
 And then execute:
@@ -27,18 +27,18 @@ And then execute:
 
 Or install it yourself as:
 
-    $ gem install active_rabbit-client
+    $ gem install activerabbit-ai
 
 ## Quick Start
 
 ### Basic Configuration
 
 ```ruby
-# config/initializers/active_rabbit.rb
+# config/initializers/activerabbit.rb
 ActiveRabbit::Client.configure do |config|
-  config.api_key = ENV['active_rabbit_API_KEY']
-  config.project_id = ENV['active_rabbit_PROJECT_ID']
-  config.api_url = ENV.fetch('active_rabbit_API_URL', 'https://api.activerabbit.com')
+  config.api_key = ENV['ACTIVERABBIT_API_KEY']
+  config.project_id = ENV['ACTIVERABBIT_PROJECT_ID']
+  config.api_url = ENV.fetch('ACTIVERABBIT_API_URL', 'https://api.activerabbit.ai')
   config.environment = Rails.env
 end
 ```
@@ -48,10 +48,10 @@ end
 You can also configure the client using environment variables:
 
 ```bash
-export active_rabbit_API_KEY="your-api-key"
-export active_rabbit_PROJECT_ID="your-project-id"
-export active_rabbit_API_URL="https://api.activerabbit.com"
-export active_rabbit_ENVIRONMENT="production"
+export ACTIVERABBIT_API_KEY="your-api-key"
+export ACTIVERABBIT_PROJECT_ID="your-project-id"
+export ACTIVERABBIT_API_URL="https://app.activerabbit.ai"
+export ACTIVERABBIT_ENVIRONMENT="production"
 ```
 
 ## Usage
@@ -138,14 +138,14 @@ The gem automatically integrates with Rails when detected:
 
 ```ruby
 class ApplicationController < ActionController::Base
-  before_action :set_active_rabbit_context
+  before_action :set_activerabbit_context
 
   private
 
-  def set_active_rabbit_context
+  def set_activerabbit_context
     # Additional context can be added to all requests
-    Thread.current[:active_rabbit_request_context] ||= {}
-    Thread.current[:active_rabbit_request_context][:user_id] = current_user&.id
+    Thread.current[:activerabbit_request_context] ||= {}
+    Thread.current[:activerabbit_request_context][:user_id] = current_user&.id
   end
 end
 ```
@@ -310,7 +310,7 @@ bundle exec rspec spec/active_rabbit/client_spec.rb
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/activerabbit/active_rabbit-client.
+Bug reports and pull requests are welcome on GitHub at https://github.com/bugrabbit/active_rabbit-client.
 
 ## License
 
