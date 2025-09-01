@@ -39,7 +39,7 @@ module ActiveRabbit
       end
 
       def test_connection
-        response = make_request(:post, "api/v1/test/connection", { 
+        response = make_request(:post, "api/v1/test/connection", {
           gem_version: ActiveRabbit::Client::VERSION,
           timestamp: Time.now.iso8601
         })
