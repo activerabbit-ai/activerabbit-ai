@@ -1,6 +1,14 @@
 # frozen_string_literal: true
 
-require "rails/railtie"
+begin
+  require "rails/railtie"
+rescue LoadError
+  # Rails not available, define minimal structure for testing
+  module Rails
+    class Railtie; end
+  end
+end
+
 require "securerandom"
 
 module ActiveRabbit
@@ -47,6 +55,34 @@ module ActiveRabbit
 
         # Add exception catching middleware
         app.middleware.insert_before ActionDispatch::ShowExceptions, ExceptionMiddleware
+      end
+
+      initializer "active_rabbit.setup_shutdown_hooks" do
+        next unless ActiveRabbit::Client.configured?
+
+        # Ensure we flush pending data on shutdown
+        at_exit do
+          begin
+            ActiveRabbit::Client.flush
+          rescue => e
+            # Don't let shutdown hooks fail the process
+            Rails.logger.error "[ActiveRabbit] Error during shutdown flush: #{e.message}" if defined?(Rails)
+          end
+        end
+
+        # Also flush on SIGTERM (common in production deployments)
+        if Signal.list.include?('TERM')
+          Signal.trap('TERM') do
+            begin
+              ActiveRabbit::Client.flush
+            rescue => e
+              # Log but don't raise
+              Rails.logger.error "[ActiveRabbit] Error during SIGTERM flush: #{e.message}" if defined?(Rails)
+            end
+            # Continue with normal SIGTERM handling
+            exit(0)
+          end
+        end
       end
 
       private
@@ -173,24 +209,29 @@ module ActiveRabbit
         end
       end
 
-            def subscribe_to_exception_notifications
-        # Subscribe to Rails exception notifications
+      def subscribe_to_exception_notifications
+        # Subscribe to Rails exception notifications for rescued exceptions
         ActiveSupport::Notifications.subscribe "process_action.action_controller" do |name, started, finished, unique_id, data|
           next unless ActiveRabbit::Client.configured?
-          next unless data[:exception]
 
-          exception_class, exception_message = data[:exception]
-
-          puts "[ActiveRabbit] Exception notification received: #{exception_class}: #{exception_message}"
-          puts "[ActiveRabbit] Available data keys: #{data.keys.inspect}"
-
-          # Create exception with proper backtrace
-          exception = exception_class.constantize.new(exception_message)
-
-          # Try to get backtrace from the original exception if available
+          # Check for rescued exceptions in the payload
+          exception = nil
           if data[:exception_object]
-            exception.set_backtrace(data[:exception_object].backtrace)
+            # Rails 7+ provides the actual exception object
+            exception = data[:exception_object]
+          elsif data[:exception]
+            # Fallback: reconstruct exception from class name and message
+            exception_class_name, exception_message = data[:exception]
+            begin
+              exception_class = exception_class_name.constantize
+              exception = exception_class.new(exception_message)
+            rescue NameError
+              # If we can't constantize the exception class, create a generic one
+              exception = StandardError.new("#{exception_class_name}: #{exception_message}")
+            end
           end
+
+          next unless exception
 
           ActiveRabbit::Client.track_exception(
             exception,
@@ -201,7 +242,13 @@ module ActiveRabbit
                 controller: data[:controller],
                 action: data[:action],
                 status: data[:status],
-                format: data[:format]
+                format: data[:format],
+                params: scrub_sensitive_params(data[:params])
+              },
+              timing: {
+                duration_ms: ((finished - started) * 1000).round(2),
+                view_runtime: data[:view_runtime],
+                db_runtime: data[:db_runtime]
               }
             }
           )
@@ -225,6 +272,13 @@ module ActiveRabbit
         nil
       end
 
+      def scrub_sensitive_params(params)
+        return {} unless params
+        return params unless ActiveRabbit::Client.configuration.enable_pii_scrubbing
+
+        PiiScrubber.new(ActiveRabbit::Client.configuration).scrub(params)
+      end
+
       def n_plus_one_detector
         @n_plus_one_detector ||= NPlusOneDetector.new(ActiveRabbit::Client.configuration)
       end
@@ -244,18 +298,28 @@ module ActiveRabbit
 
         # Set request context
         request_context = build_request_context(request)
+        request_id = SecureRandom.uuid
+
+        # Store previous context to restore later (in case of nested requests)
+        previous_context = Thread.current[:active_rabbit_request_context]
         Thread.current[:active_rabbit_request_context] = request_context
 
         # Start N+1 detection for this request
-        request_id = SecureRandom.uuid
         n_plus_one_detector.start_request(request_id)
 
         begin
           @app.call(env)
         ensure
-          # Clean up request context
-          Thread.current[:active_rabbit_request_context] = nil
-          n_plus_one_detector.finish_request(request_id)
+          # Always clean up request context, even if an exception occurred
+          begin
+            n_plus_one_detector.finish_request(request_id)
+          rescue => e
+            # Log but don't raise - we don't want cleanup to fail the request
+            Rails.logger.error "[ActiveRabbit] Error finishing N+1 detection: #{e.message}" if defined?(Rails)
+          end
+
+          # Restore previous context (handles nested requests)
+          Thread.current[:active_rabbit_request_context] = previous_context
         end
       end
 
@@ -299,29 +363,53 @@ module ActiveRabbit
       end
 
       def call(env)
-        puts "[ActiveRabbit] ExceptionMiddleware called for: #{env['REQUEST_METHOD']} #{env['PATH_INFO']}"
         @app.call(env)
       rescue Exception => exception
-        # Track the exception
-        puts "[ActiveRabbit] ExceptionMiddleware caught: #{exception.class}: #{exception.message}"
-        request = ActionDispatch::Request.new(env)
+        # Track the exception, but don't let tracking errors break the request
+        begin
+          request = ActionDispatch::Request.new(env)
 
-        ActiveRabbit::Client.track_exception(
-          exception,
-          context: {
-            request: {
-              method: request.method,
-              path: request.path,
-              query_string: request.query_string,
-              user_agent: request.headers["User-Agent"],
-              ip_address: request.remote_ip,
-              referer: request.referer
+          ActiveRabbit::Client.track_exception(
+            exception,
+            context: {
+              request: {
+                method: request.method,
+                path: request.path,
+                query_string: request.query_string,
+                user_agent: request.headers["User-Agent"],
+                ip_address: request.remote_ip,
+                referer: request.referer,
+                headers: sanitize_headers(request.headers)
+              },
+              middleware: {
+                caught_by: 'ExceptionMiddleware',
+                timestamp: Time.now.iso8601(3)
+              }
             }
-          }
-        )
+          )
+        rescue => tracking_error
+          # Log tracking errors but don't let them interfere with exception handling
+          Rails.logger.error "[ActiveRabbit] Error tracking exception: #{tracking_error.message}" if defined?(Rails)
+        end
 
-        # Re-raise the exception so Rails can handle it normally
+        # Re-raise the original exception so Rails can handle it normally
         raise exception
+      end
+
+      private
+
+      def sanitize_headers(headers)
+        # Only include safe headers to avoid PII
+        safe_headers = {}
+        headers.each do |key, value|
+          next unless key.is_a?(String)
+
+          # Include common safe headers
+          if key.match?(/^(HTTP_ACCEPT|HTTP_ACCEPT_ENCODING|HTTP_ACCEPT_LANGUAGE|HTTP_CACHE_CONTROL|HTTP_CONNECTION|HTTP_HOST|HTTP_UPGRADE_INSECURE_REQUESTS|HTTP_USER_AGENT|CONTENT_TYPE|REQUEST_METHOD|REQUEST_URI|SERVER_NAME|SERVER_PORT)$/i)
+            safe_headers[key] = value
+          end
+        end
+        safe_headers
       end
     end
   end

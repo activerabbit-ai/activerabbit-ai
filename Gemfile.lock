@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    active_rabbit-client (0.1.0)
+    activerabbit-ai (0.1.2)
       concurrent-ruby (~> 1.1)
       faraday (~> 2.0)
       faraday-retry (~> 2.0)
@@ -121,7 +121,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  active_rabbit-client!
+  activerabbit-ai!
   irb
   rake (~> 13.0)
   rspec (~> 3.0)

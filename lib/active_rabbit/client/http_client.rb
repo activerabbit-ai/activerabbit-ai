@@ -4,6 +4,7 @@ require "faraday"
 require "faraday/retry"
 require "json"
 require "concurrent"
+require "time"
 
 module ActiveRabbit
   module Client

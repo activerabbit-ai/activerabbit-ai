@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "time"
+
 module ActiveRabbit
   module Client
     class PerformanceMonitor
