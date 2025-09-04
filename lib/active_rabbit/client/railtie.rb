@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require "logger"
+
 begin
   require "rails/railtie"
 rescue LoadError
@@ -16,11 +18,11 @@ module ActiveRabbit
     class Railtie < Rails::Railtie
       config.active_rabbit = ActiveSupport::OrderedOptions.new
 
-      initializer "active_rabbit.configure" do |app|
+      initializer "active_rabbit.configure", after: :initialize_logger do |app|
         # Configure ActiveRabbit from Rails configuration
         ActiveRabbit::Client.configure do |config|
           config.environment = Rails.env
-          config.logger = Rails.logger
+          config.logger = Rails.logger rescue Logger.new(STDOUT)
           config.release = detect_release(app)
         end
 

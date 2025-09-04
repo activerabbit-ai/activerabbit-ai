@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2025-01-04
+
+### Fixed
+- Added explicit `require "logger"` to prevent Rails initialization issues
+- Made Rails.logger access safer with fallback to STDOUT logger
+- Changed initializer to run after `:initialize_logger` to ensure proper load order
+- Fixed potential NameError with ActiveSupport::LoggerThreadSafeLevel::Logger
+
 ## [0.4.0] - 2025-01-04
 
 ### Added
