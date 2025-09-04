@@ -17,7 +17,7 @@ This release completely replaces Faraday with pure Net::HTTP, eliminating depend
 - **Faraday Dependencies**: Completely removed `faraday` and `faraday-retry` dependencies
 - **Dependency Complexity**: No more version conflicts with other gems using Faraday
 
-### Added  
+### Added
 - **Pure Net::HTTP Implementation**: Lightweight, zero-dependency HTTP client
 - **Built-in Retry Logic**: Exponential backoff retry mechanism with configurable attempts
 - **SSL Support**: Automatic HTTPS handling with proper SSL verification
@@ -26,7 +26,7 @@ This release completely replaces Faraday with pure Net::HTTP, eliminating depend
 - **Rate Limit Detection**: Proper 429 status code handling
 
 ### Improved
-- **Performance**: Faster startup and lower memory usage without Faraday overhead  
+- **Performance**: Faster startup and lower memory usage without Faraday overhead
 - **Reliability**: Simplified HTTP stack reduces potential points of failure
 - **Maintainability**: Pure Ruby implementation easier to debug and maintain
 - **Compatibility**: No more conflicts with applications using different Faraday versions

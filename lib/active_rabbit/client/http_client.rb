@@ -108,7 +108,7 @@ module ActiveRabbit
 
       def make_request(method, path, data)
         uri = URI.join(@base_uri, path)
-        
+
         # Retry logic with exponential backoff
         retries = 0
         max_retries = configuration.retry_count
@@ -137,17 +137,17 @@ module ActiveRabbit
 
       def perform_request(uri, method, data)
         http = Net::HTTP.new(uri.host, uri.port)
-        
+
         # Configure SSL if HTTPS
         if uri.scheme == 'https'
           http.use_ssl = true
           http.verify_mode = OpenSSL::SSL::VERIFY_PEER
         end
-        
+
         # Set timeouts
         http.open_timeout = configuration.open_timeout
         http.read_timeout = configuration.timeout
-        
+
         # Create request
         request = case method.to_s.downcase
                   when 'post'
@@ -161,22 +161,22 @@ module ActiveRabbit
                   else
                     raise ArgumentError, "Unsupported HTTP method: #{method}"
                   end
-        
+
         # Set headers
         request['Content-Type'] = 'application/json'
         request['Accept'] = 'application/json'
         request['User-Agent'] = "ActiveRabbit-Ruby/#{ActiveRabbit::Client::VERSION}"
         request['X-Project-Token'] = configuration.api_key
-        
+
         if configuration.project_id
           request['X-Project-ID'] = configuration.project_id
         end
-        
+
         # Set body for POST/PUT requests
         if data && %w[post put].include?(method.to_s.downcase)
           request.body = JSON.generate(data)
         end
-        
+
         http.request(request)
       end
 
@@ -223,8 +223,8 @@ module ActiveRabbit
 
       def should_retry_error?(error)
         # Retry on network-level errors
-        error.is_a?(Net::TimeoutError) || 
-        error.is_a?(Net::OpenTimeout) || 
+        error.is_a?(Net::TimeoutError) ||
+        error.is_a?(Net::OpenTimeout) ||
         error.is_a?(Net::ReadTimeout) ||
         error.is_a?(Errno::ECONNREFUSED) ||
         error.is_a?(Errno::EHOSTUNREACH) ||
