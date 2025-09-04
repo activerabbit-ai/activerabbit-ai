@@ -116,7 +116,14 @@ module ActiveRabbit
         begin
           response = perform_request(uri, method, data)
           handle_response(response)
-        rescue Net::TimeoutError, Net::OpenTimeout, Net::ReadTimeout => e
+        rescue RetryableError => e
+          if retries < max_retries
+            retries += 1
+            sleep(configuration.retry_delay * (2 ** (retries - 1)))
+            retry
+          end
+          raise APIError, e.message
+        rescue Net::OpenTimeout, Net::ReadTimeout => e
           if retries < max_retries && should_retry_error?(e)
             retries += 1
             sleep(configuration.retry_delay * (2 ** (retries - 1))) # Exponential backoff
@@ -130,6 +137,9 @@ module ActiveRabbit
             retry
           end
           raise APIError, "Connection failed after #{retries} retries: #{e.message}"
+        rescue APIError, RateLimitError => e
+          # Re-raise API errors as-is
+          raise e
         rescue => e
           raise APIError, "Request failed: #{e.message}"
         end
@@ -223,7 +233,6 @@ module ActiveRabbit
 
       def should_retry_error?(error)
         # Retry on network-level errors
-        error.is_a?(Net::TimeoutError) ||
         error.is_a?(Net::OpenTimeout) ||
         error.is_a?(Net::ReadTimeout) ||
         error.is_a?(Errno::ECONNREFUSED) ||

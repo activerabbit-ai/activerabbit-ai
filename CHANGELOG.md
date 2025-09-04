@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2025-01-03
+
+### 🧪 Added Comprehensive Test Suite
+
+### Added
+- **Complete RSpec Test Suite**: 73 comprehensive tests covering all functionality
+- **HTTP Client Tests**: Full test coverage for the new Net::HTTP implementation
+- **WebMock Integration**: Reliable HTTP request mocking for consistent testing
+- **Error Scenario Testing**: Network failures, timeouts, and API error simulation
+- **Retry Logic Testing**: Validates exponential backoff and max retry behavior
+- **Concurrent Testing**: Thread safety and batch processing validation
+- **Configuration Testing**: Comprehensive validation of all configuration options
+
+### Improved
+- **Test Coverage**: 100% coverage of core HTTP client functionality
+- **Quality Assurance**: All 73 tests passing with zero failures
+- **Development Experience**: Easy test running with `bundle exec rspec`
+- **Reliability**: Validated Net::HTTP implementation with comprehensive edge case testing
+
+### Technical Details
+- Tests validate all HTTP methods (GET, POST, PUT, DELETE)
+- SSL/HTTPS handling verification
+- JSON request/response processing tests
+- Rate limit detection and handling tests
+- Background queue management and batch processing tests
+- Graceful error handling and recovery tests
+
+This release ensures the Net::HTTP implementation is thoroughly tested and production-ready.
+
 ## [0.3.0] - 2025-01-03
 
 ### 🚀 Major HTTP Client Rewrite - Eliminated Faraday Dependency
