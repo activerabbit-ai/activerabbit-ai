@@ -175,7 +175,7 @@ module ActiveRabbit
         # Set headers
         request['Content-Type'] = 'application/json'
         request['Accept'] = 'application/json'
-        request['User-Agent'] = "ActiveRabbit-Ruby/#{ActiveRabbit::Client::VERSION}"
+        request['User-Agent'] = "ActiveRabbit-Client/#{ActiveRabbit::Client::VERSION}"
         request['X-Project-Token'] = configuration.api_key
 
         if configuration.project_id

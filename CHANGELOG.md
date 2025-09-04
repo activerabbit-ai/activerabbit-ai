@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2025-01-04
+
+### Added
+- Comprehensive RSpec test suite with 73+ test examples
+- API integration tests with WebMock for mocked API calls
+- Live API integration tests for real API testing
+- Support for testing Rails middleware integration
+- API helper modules for test setup and configuration
+- Test coverage for all major gem components:
+  - HTTP client with Net::HTTP implementation
+  - Configuration management and validation
+  - PII scrubbing functionality
+  - Error and performance tracking
+  - Batch processing and retry logic
+
+### Improved
+- Enhanced test reliability with proper WebMock configuration
+- Better error handling in test scenarios
+- Comprehensive validation of API communication
+- Live API testing capabilities with localhost support
+
+### Fixed
+- Corrected User-Agent header in HTTP client tests
+- Fixed WebMock header matching issues
+- Resolved RSpec version constant references
+- Improved test isolation and cleanup
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 

@@ -77,7 +77,7 @@ RSpec.describe ActiveRabbit::Client::HttpClient do
             headers: {
               'Content-Type' => 'application/json',
               'Accept' => 'application/json',
-              'User-Agent' => "ActiveRabbit-Ruby/#{ActiveRabbit::Client::VERSION}",
+              'User-Agent' => "ActiveRabbit-Client/#{ActiveRabbit::Client::VERSION}",
               'X-Project-Token' => 'test-api-key',
               'X-Project-ID' => 'test-project'
             },
@@ -113,7 +113,7 @@ RSpec.describe ActiveRabbit::Client::HttpClient do
             headers: {
               'Content-Type' => 'application/json',
               'Accept' => 'application/json',
-              'User-Agent' => "ActiveRabbit-Ruby/#{ActiveRabbit::Client::VERSION}",
+              'User-Agent' => "ActiveRabbit-Client/#{ActiveRabbit::Client::VERSION}",
               'X-Project-Token' => 'test-api-key',
               'X-Project-ID' => 'test-project'
             },
