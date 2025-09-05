@@ -52,11 +52,37 @@ module ActiveRabbit
       initializer "active_rabbit.add_middleware" do |app|
         next unless ActiveRabbit::Client.configured?
 
-        # Add request context middleware
-        app.middleware.insert_before ActionDispatch::ShowExceptions, RequestContextMiddleware
+        # Remove any previous placement to avoid duplicates
+        begin
+          app.middleware.delete ExceptionMiddleware
+        rescue
+        end
 
-        # Add exception catching middleware
-        app.middleware.insert_before ActionDispatch::ShowExceptions, ExceptionMiddleware
+        if defined?(ActionDispatch::DebugExceptions)
+          Rails.logger.info "[ActiveRabbit] Inserting AFTER DebugExceptions (development mode)" if defined?(Rails)
+          # DEV: be AFTER the rescuer
+          app.middleware.insert_after(
+            ActionDispatch::DebugExceptions,
+            ExceptionMiddleware
+          )
+        elsif defined?(ActionDispatch::ShowExceptions)
+          Rails.logger.info "[ActiveRabbit] Inserting AFTER ShowExceptions (production mode)" if defined?(Rails)
+          # PROD: be AFTER the rescuer
+          app.middleware.insert_after(
+            ActionDispatch::ShowExceptions,
+            ExceptionMiddleware
+          )
+        else
+          Rails.logger.info "[ActiveRabbit] Fallback: using ExceptionMiddleware" if defined?(Rails)
+          # Fallback: close to the app
+          app.middleware.use ExceptionMiddleware
+        end
+
+        # Request context middleware can stay early/anywhere
+        app.middleware.insert_before(
+          ActionDispatch::RequestId,
+          RequestContextMiddleware
+        )
       end
 
       initializer "active_rabbit.setup_shutdown_hooks" do
@@ -365,9 +391,34 @@ module ActiveRabbit
       end
 
       def call(env)
-        @app.call(env)
-      rescue Exception => exception
-        # Track the exception, but don't let tracking errors break the request
+        # debug start - using Rails.logger to ensure it appears in development.log
+        Rails.logger.info "[AR] ExceptionMiddleware ENTER path=#{env['PATH_INFO']}" if defined?(Rails)
+        warn "[AR] ExceptionMiddleware ENTER path=#{env['PATH_INFO']}"
+
+        status, headers, body = @app.call(env)
+
+        # Secondary safety: check env for exceptions (may be populated by Rails rescuers)
+        if (ex = env["action_dispatch.exception"] || env["rack.exception"] || env["action_dispatch.error"])
+          Rails.logger.info "[AR] env exception present: #{ex.class}: #{ex.message}" if defined?(Rails)
+          warn "[AR] env exception present: #{ex.class}: #{ex.message}"
+          safe_report(ex, env, 'Rails rescued exception')
+        else
+          Rails.logger.info "[AR] env exception NOT present" if defined?(Rails)
+          warn "[AR] env exception NOT present"
+        end
+
+        [status, headers, body]
+      rescue => e
+        # Primary path: catch raw exceptions before Rails rescuers
+        Rails.logger.info "[AR] RESCUE caught: #{e.class}: #{e.message}" if defined?(Rails)
+        warn "[AR] RESCUE caught: #{e.class}: #{e.message}"
+        safe_report(e, env, 'Raw exception caught')
+        raise  # let Rails still render its error page
+      end
+
+      private
+
+      def safe_report(exception, env, source)
         begin
           request = ActionDispatch::Request.new(env)
 
@@ -385,20 +436,18 @@ module ActiveRabbit
               },
               middleware: {
                 caught_by: 'ExceptionMiddleware',
+                source: source,
                 timestamp: Time.now.iso8601(3)
               }
             }
           )
+
+          Rails.logger.info "[ActiveRabbit] Tracked #{source}: #{exception.class.name} - #{exception.message}" if defined?(Rails)
         rescue => tracking_error
           # Log tracking errors but don't let them interfere with exception handling
           Rails.logger.error "[ActiveRabbit] Error tracking exception: #{tracking_error.message}" if defined?(Rails)
         end
-
-        # Re-raise the original exception so Rails can handle it normally
-        raise exception
       end
-
-      private
 
       def sanitize_headers(headers)
         # Only include safe headers to avoid PII

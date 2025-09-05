@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.2] - 2025-01-04
+
+### Fixed
+- **Major Rails 6.1 compatibility fix**: Added Rails Engine as primary integration method
+- Engine loads after Rails initialization (safer than Railtie)
+- Added comprehensive error handling for Rails loading edge cases
+- Fallback mechanism: Engine -> Railtie -> Graceful degradation
+- Fixed Logger initialization issues in Docker environments
+- Added better error messages for debugging Rails integration issues
+
+### Added
+- Rails Engine integration (`ActiveRabbit::Client::Engine`)
+- Safer middleware insertion with error handling
+- Enhanced shutdown hooks and signal handling
+- Better request context management
+
 ## [0.4.1] - 2025-01-04
 
 ### Fixed
