@@ -85,6 +85,12 @@ module ActiveRabbit
         )
       end
 
+      initializer "active_rabbit.error_reporter" do
+        next unless ActiveRabbit::Client.configured?
+
+        ActiveRabbit::Client::ErrorReporter.attach!
+      end
+
       initializer "active_rabbit.setup_shutdown_hooks" do
         next unless ActiveRabbit::Client.configured?
 

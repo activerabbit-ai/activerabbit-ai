@@ -8,6 +8,7 @@ require_relative "client/exception_tracker"
 require_relative "client/performance_monitor"
 require_relative "client/n_plus_one_detector"
 require_relative "client/pii_scrubber"
+require_relative "client/error_reporter"
 
 # Rails integration (optional)
 begin
