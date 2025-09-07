@@ -108,8 +108,8 @@ module ActiveRabbit
           # Insert middleware in the correct order
           puts "[ActiveRabbit] Inserting middleware..." if Rails.env.development?
 
-          # Insert ErrorCaptureMiddleware before DebugExceptions to catch all raw exceptions
-          app.config.middleware.insert_before(ActionDispatch::DebugExceptions, ActiveRabbit::Middleware::ErrorCaptureMiddleware)
+          # Insert ErrorCaptureMiddleware after DebugExceptions to rely on rescue path
+          app.config.middleware.insert_after(ActionDispatch::DebugExceptions, ActiveRabbit::Middleware::ErrorCaptureMiddleware)
 
           # Insert RequestContextMiddleware early in the stack
           puts "[ActiveRabbit] Inserting RequestContextMiddleware before RequestId" if Rails.env.development?
@@ -141,8 +141,8 @@ module ActiveRabbit
           # Insert middleware in the correct order
           puts "[ActiveRabbit] Inserting middleware..." if Rails.env.development?
 
-          # Insert ErrorCaptureMiddleware before ShowExceptions
-          app.config.middleware.insert_before(ActionDispatch::ShowExceptions, ActiveRabbit::Middleware::ErrorCaptureMiddleware)
+          # Insert ErrorCaptureMiddleware after ShowExceptions
+          app.config.middleware.insert_after(ActionDispatch::ShowExceptions, ActiveRabbit::Middleware::ErrorCaptureMiddleware)
 
           # Insert RequestContextMiddleware early in the stack
           puts "[ActiveRabbit] Inserting RequestContextMiddleware before RequestId" if Rails.env.development?

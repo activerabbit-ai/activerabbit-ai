@@ -16,12 +16,20 @@ module ActiveRabbit
       enriched_context[:source] ||= source
       enriched_context[:handled] = handled if !enriched_context.key?(:handled)
 
-      ActiveRabbit::Client.track_exception(
-        exception,
+      # Enrich for routing errors so UI shows controller action and 404 specifics
+      if defined?(ActionController::RoutingError) && exception.is_a?(ActionController::RoutingError)
+        enriched_context[:controller_action] ||= 'Routing#not_found'
+        enriched_context[:error_type] ||= 'route_not_found'
+        enriched_context[:error_status] ||= 404
+        enriched_context[:error_component] ||= 'ActionDispatch'
+        enriched_context[:error_source] ||= 'Router'
+        enriched_context[:tags] = (enriched_context[:tags] || {}).merge(error_type: 'routing_error', severity: 'warning')
+      end
+
+      ActiveRabbit::Client.track_exception(exception,
         context: enriched_context,
         handled: handled,
-        force: force
-      )
+        force: force)
     rescue => e
       if defined?(Rails)
         Rails.logger&.error("[ActiveRabbit] report_exception failed: #{e.class}: #{e.message}")

@@ -61,14 +61,28 @@ module ActiveRabbit
       private
 
       def build_exception_data(exception:, context:, user_id:, tags:, handled: nil)
-        backtrace = parse_backtrace(exception.backtrace || [])
+        parsed_bt = parse_backtrace(exception.backtrace || [])
+        backtrace_lines = parsed_bt.map { |frame| frame[:line] }
+
+        # Fallback: synthesize a helpful frame for routing errors with no backtrace
+        if backtrace_lines.empty?
+          synthetic = nil
+          if context && (context[:routing]&.[](:path) || context[:request_path])
+            path = context[:routing]&.[](:path) || context[:request_path]
+            synthetic = "#{defined?(Rails) && Rails.respond_to?(:root) ? Rails.root : 'app'}/config/routes.rb:1:in `route_not_found' for #{path}"
+          elsif exception && exception.message && exception.message =~ /No route matches \[(\w+)\] \"(.+?)\"/
+            path = $2
+            synthetic = "#{defined?(Rails) && Rails.respond_to?(:root) ? Rails.root : 'app'}/config/routes.rb:1:in `route_not_found' for #{path}"
+          end
+          backtrace_lines = [synthetic] if synthetic
+        end
 
         # Build data in the format the API expects
         data = {
           # Required fields
           exception_class: exception.class.name,
           message: exception.message,
-          backtrace: backtrace.map { |frame| frame[:line] },
+          backtrace: backtrace_lines,
 
           # Timing and environment
           occurred_at: Time.now.iso8601(3),
@@ -93,7 +107,7 @@ module ActiveRabbit
           # Error details (for better UI display)
           error_type: context[:error_type] || exception.class.name,
           error_message: context[:error_message] || exception.message,
-          error_location: context[:error_location] || backtrace.first&.dig(:line),
+          error_location: context[:error_location] || backtrace_lines.first,
           error_severity: context[:error_severity] || :error,
           error_status: context[:error_status] || 500,
           error_source: context[:error_source] || 'Application',
