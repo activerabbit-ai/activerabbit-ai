@@ -35,7 +35,7 @@ begin
 
   response = http.request(request)
 
-  if response.code.to_i == 200
+  if [200,201].include?(response.code.to_i)
     puts "✅ API connection successful!"
     puts "   Response: #{response.body}"
   else
@@ -80,7 +80,7 @@ begin
 
   response = http.request(request)
 
-  if response.code.to_i == 200
+  if [200,201].include?(response.code.to_i)
     puts "✅ Exception tracking successful!"
     puts "   Response: #{response.body}"
   else
@@ -120,7 +120,7 @@ begin
 
   response = http.request(request)
 
-  if response.code.to_i == 200
+  if [200,201].include?(response.code.to_i)
     puts "✅ Performance tracking successful!"
     puts "   Response: #{response.body}"
   else

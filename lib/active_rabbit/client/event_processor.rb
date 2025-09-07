@@ -102,6 +102,11 @@ module ActiveRabbit
           context[:request] = Thread.current[:active_rabbit_request_context]
         end
 
+        # Background job information (if available)
+        if defined?(Thread) && Thread.current[:active_rabbit_job_context]
+          context[:job] = Thread.current[:active_rabbit_job_context]
+        end
+
         context
       end
 

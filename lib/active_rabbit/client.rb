@@ -59,21 +59,22 @@ module ActiveRabbit
         )
       end
 
-      def track_exception(exception, context: {}, user_id: nil, tags: {})
+      def track_exception(exception, context: {}, user_id: nil, tags: {}, handled: nil, force: false)
         return unless configured?
 
-        # Merge tags into context for proper API formatting
-        context_with_tags = context.merge(
-          tags: (context[:tags] || {}).merge(tags)
-        )
+        context_with_tags = context
 
         # Track the exception
-        result = exception_tracker.track_exception(
+        args = {
           exception: exception,
           context: context_with_tags,
           user_id: user_id,
           tags: tags
-        )
+        }
+        args[:handled] = handled unless handled.nil?
+        args[:force] = true if force
+
+        result = exception_tracker.track_exception(**args)
 
         # Log the result
         configuration.logger&.info("[ActiveRabbit] Exception tracked: #{exception.class.name}")
@@ -119,6 +120,11 @@ module ActiveRabbit
         flush
         event_processor.shutdown
         http_client.shutdown
+      end
+
+      # Manual capture convenience for non-Rails contexts
+      def capture_exception(exception, context: {}, user_id: nil, tags: {})
+        track_exception(exception, context: context, user_id: user_id, tags: tags)
       end
 
       private

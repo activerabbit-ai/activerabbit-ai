@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    activerabbit-ai (0.3.1)
+    activerabbit-ai (0.4.2)
       concurrent-ruby (~> 1.1)
 
 GEM
@@ -42,6 +42,7 @@ GEM
       stringio
     public_suffix (6.0.2)
     racc (1.8.1)
+    rack (3.2.1)
     rainbow (3.1.1)
     rake (13.3.0)
     rdoc (6.14.2)
@@ -111,6 +112,7 @@ PLATFORMS
 DEPENDENCIES
   activerabbit-ai!
   irb
+  rack (~> 3.0)
   rake (~> 13.0)
   rspec (~> 3.0)
   standard (~> 1.3)

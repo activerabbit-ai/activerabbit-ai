@@ -27,7 +27,7 @@ module ActiveRabbit
       end
 
       def post_event(event_data)
-        enqueue_request(:post, "/api/v1/events", event_data)
+        enqueue_request(:post, "api/v1/events", event_data)
       end
 
       def post_exception(exception_data)
@@ -72,14 +72,14 @@ module ActiveRabbit
       def post_performance(performance_data)
         # Add event_type for batch processing
         performance_data_with_type = performance_data.merge(event_type: 'performance')
-        enqueue_request(:post, "/api/v1/events/performance", performance_data_with_type)
+        enqueue_request(:post, "api/v1/events/performance", performance_data_with_type)
       end
 
       def post_batch(batch_data)
         # Transform batch data into the format the API expects
         events = batch_data.map do |event|
           {
-            type: event[:data][:event_type],
+            type: event[:data][:event_type] || event[:event_type] || event[:type],
             data: event[:data]
           }
         end
@@ -164,7 +164,11 @@ module ActiveRabbit
       end
 
       def make_request(method, path, data)
-        uri = URI.join(@base_uri, path)
+        # Always rebuild base from current configuration to respect runtime changes
+        current_base = URI(configuration.api_url)
+        # Ensure path starts with a single leading slash
+        normalized_path = path.start_with?("/") ? path : "/#{path}"
+        uri = URI.join(current_base, normalized_path)
         configuration.logger&.info("[ActiveRabbit] Making request: #{method.upcase} #{uri}")
         configuration.logger&.debug("[ActiveRabbit] Request headers: X-Project-Token=#{configuration.api_key}, X-Project-ID=#{configuration.project_id}")
         configuration.logger&.debug("[ActiveRabbit] Request body: #{safe_preview(data)}")

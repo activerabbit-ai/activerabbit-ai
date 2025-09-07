@@ -12,6 +12,8 @@ rescue LoadError
 end
 
 require "securerandom"
+require_relative "../reporting"
+require_relative "../middleware/error_capture_middleware"
 
 module ActiveRabbit
   module Client
@@ -19,10 +21,12 @@ module ActiveRabbit
       config.active_rabbit = ActiveSupport::OrderedOptions.new
 
       initializer "active_rabbit.configure", after: :initialize_logger do |app|
-        puts "\n=== ActiveRabbit Configure ==="
-        puts "Environment: #{Rails.env}"
-        puts "Already configured? #{ActiveRabbit::Client.configured?}"
-        puts "================================\n"
+        if Rails.env.development?
+          puts "\n=== ActiveRabbit Configure ==="
+          puts "Environment: #{Rails.env}"
+          puts "Already configured? #{ActiveRabbit::Client.configured?}"
+          puts "================================\n"
+        end
 
         # Configure ActiveRabbit from Rails configuration
         ActiveRabbit::Client.configure do |config|
@@ -31,114 +35,140 @@ module ActiveRabbit
           config.release = detect_release(app)
         end
 
-        puts "\n=== ActiveRabbit Post-Configure ==="
-        puts "Now configured? #{ActiveRabbit::Client.configured?}"
-        puts "Configuration: #{ActiveRabbit::Client.configuration.inspect}"
-        puts "================================\n"
+        if Rails.env.development?
+          puts "\n=== ActiveRabbit Post-Configure ==="
+          puts "Now configured? #{ActiveRabbit::Client.configured?}"
+          puts "Configuration: #{ActiveRabbit::Client.configuration.inspect}"
+          puts "================================\n"
+        end
 
         # Set up exception tracking
         setup_exception_tracking(app) if ActiveRabbit::Client.configured?
       end
 
-      initializer "active_rabbit.subscribe_to_notifications" do
-        next unless ActiveRabbit::Client.configured?
+      initializer "active_rabbit.subscribe_to_notifications" do |app|
+        # Defer subscription until after application initializers (configuration complete)
+        app.config.after_initialize do
+          # Subscribe regardless; each handler guards on configured?
+          subscribe_to_controller_events
+          subscribe_to_active_record_events
+          subscribe_to_action_view_events
+          subscribe_to_action_mailer_events if defined?(ActionMailer)
+          subscribe_to_exception_notifications
 
-        # Subscribe to Action Controller events
-        subscribe_to_controller_events
+          # Fallback: low-level rack.exception subscription (older Rails and deep middleware errors)
+          ActiveSupport::Notifications.subscribe("rack.exception") do |*args|
+            begin
+              payload = args.last
+              exception = payload[:exception_object]
+              env = payload[:env]
+              next unless exception
 
-        # Subscribe to Active Record events
-        subscribe_to_active_record_events
-
-        # Subscribe to Action View events
-        subscribe_to_action_view_events
-
-        # Subscribe to Action Mailer events (if available)
-        subscribe_to_action_mailer_events if defined?(ActionMailer)
-
-        # Subscribe to exception notifications
-        subscribe_to_exception_notifications
+              ActiveRabbit::Reporting.report_exception(
+                exception,
+                env: env,
+                handled: false,
+                source: "rack.exception",
+                force: true
+              )
+            rescue => e
+              Rails.logger.error "[ActiveRabbit] Error handling rack.exception: #{e.class}: #{e.message}" if defined?(Rails)
+            end
+          end
+        end
       end
 
       # Configure middleware after logger is initialized to avoid init cycles
       initializer "active_rabbit.add_middleware", after: :initialize_logger do |app|
-        puts "\n=== ActiveRabbit Railtie Loading ==="
-        puts "Rails Environment: #{Rails.env}"
-        puts "Rails Middleware Stack Phase: #{app.middleware.respond_to?(:middlewares) ? 'Ready' : 'Not Ready'}"
-        puts "================================\n"
-        puts "\n=== Initial Middleware Stack ==="
-        puts "(not available at this boot phase)"
-        puts "=======================\n"
+        if Rails.env.development?
+          puts "\n=== ActiveRabbit Railtie Loading ==="
+          puts "Rails Environment: #{Rails.env}"
+          puts "Rails Middleware Stack Phase: #{app.middleware.respond_to?(:middlewares) ? 'Ready' : 'Not Ready'}"
+          puts "================================\n"
+          puts "\n=== Initial Middleware Stack ==="
+          puts "(not available at this boot phase)"
+          puts "=======================\n"
+        end
 
-        puts "\n=== Adding ActiveRabbit Middleware ==="
+        puts "\n=== Adding ActiveRabbit Middleware ===" if Rails.env.development?
         # Handle both development (DebugExceptions) and production (ShowExceptions)
         if defined?(ActionDispatch::DebugExceptions)
-          puts "[ActiveRabbit] Found DebugExceptions, configuring middleware..."
+          puts "[ActiveRabbit] Found DebugExceptions, configuring middleware..." if Rails.env.development?
 
           # First remove any existing middleware to avoid duplicates
           begin
             app.config.middleware.delete(ActiveRabbit::Client::ExceptionMiddleware)
             app.config.middleware.delete(ActiveRabbit::Client::RequestContextMiddleware)
             app.config.middleware.delete(ActiveRabbit::Client::RoutingErrorCatcher)
-            puts "[ActiveRabbit] Cleaned up existing middleware"
+            puts "[ActiveRabbit] Cleaned up existing middleware" if Rails.env.development?
           rescue => e
             puts "[ActiveRabbit] Error cleaning middleware: #{e.message}"
           end
 
           # Insert middleware in the correct order
-          puts "[ActiveRabbit] Inserting middleware..."
+          puts "[ActiveRabbit] Inserting middleware..." if Rails.env.development?
 
-          # Insert RequestContextMiddleware first
-          puts "[ActiveRabbit] Inserting RequestContextMiddleware before RequestId"
+          # Insert ErrorCaptureMiddleware before DebugExceptions to catch all raw exceptions
+          app.config.middleware.insert_before(ActionDispatch::DebugExceptions, ActiveRabbit::Middleware::ErrorCaptureMiddleware)
+
+          # Insert RequestContextMiddleware early in the stack
+          puts "[ActiveRabbit] Inserting RequestContextMiddleware before RequestId" if Rails.env.development?
           app.config.middleware.insert_before(ActionDispatch::RequestId, ActiveRabbit::Client::RequestContextMiddleware)
 
-          # Insert ExceptionMiddleware before Rails' exception handlers
-          puts "[ActiveRabbit] Inserting ExceptionMiddleware before DebugExceptions"
+          # Insert ExceptionMiddleware before Rails' exception handlers (kept for env-based reporting)
+          puts "[ActiveRabbit] Inserting ExceptionMiddleware before DebugExceptions" if Rails.env.development?
           app.config.middleware.insert_before(ActionDispatch::DebugExceptions, ActiveRabbit::Client::ExceptionMiddleware)
 
           # Insert RoutingErrorCatcher after Rails' exception handlers
-          puts "[ActiveRabbit] Inserting RoutingErrorCatcher after DebugExceptions"
+          puts "[ActiveRabbit] Inserting RoutingErrorCatcher after DebugExceptions" if Rails.env.development?
           app.config.middleware.insert_after(ActionDispatch::DebugExceptions, ActiveRabbit::Client::RoutingErrorCatcher)
 
-          puts "[ActiveRabbit] Middleware insertion complete"
+          puts "[ActiveRabbit] Middleware insertion complete" if Rails.env.development?
 
         elsif defined?(ActionDispatch::ShowExceptions)
-          puts "[ActiveRabbit] Found ShowExceptions, configuring middleware..."
+          puts "[ActiveRabbit] Found ShowExceptions, configuring middleware..." if Rails.env.development?
 
           # First remove any existing middleware to avoid duplicates
           begin
             app.config.middleware.delete(ActiveRabbit::Client::ExceptionMiddleware)
             app.config.middleware.delete(ActiveRabbit::Client::RequestContextMiddleware)
             app.config.middleware.delete(ActiveRabbit::Client::RoutingErrorCatcher)
-            puts "[ActiveRabbit] Cleaned up existing middleware"
+            puts "[ActiveRabbit] Cleaned up existing middleware" if Rails.env.development?
           rescue => e
             puts "[ActiveRabbit] Error cleaning middleware: #{e.message}"
           end
 
           # Insert middleware in the correct order
-          puts "[ActiveRabbit] Inserting middleware..."
+          puts "[ActiveRabbit] Inserting middleware..." if Rails.env.development?
 
-          # Insert RequestContextMiddleware first
-          puts "[ActiveRabbit] Inserting RequestContextMiddleware before RequestId"
+          # Insert ErrorCaptureMiddleware before ShowExceptions
+          app.config.middleware.insert_before(ActionDispatch::ShowExceptions, ActiveRabbit::Middleware::ErrorCaptureMiddleware)
+
+          # Insert RequestContextMiddleware early in the stack
+          puts "[ActiveRabbit] Inserting RequestContextMiddleware before RequestId" if Rails.env.development?
           app.config.middleware.insert_before(ActionDispatch::RequestId, ActiveRabbit::Client::RequestContextMiddleware)
 
           # Insert ExceptionMiddleware before Rails' exception handlers
-          puts "[ActiveRabbit] Inserting ExceptionMiddleware before ShowExceptions"
+          puts "[ActiveRabbit] Inserting ExceptionMiddleware before ShowExceptions" if Rails.env.development?
           app.config.middleware.insert_before(ActionDispatch::ShowExceptions, ActiveRabbit::Client::ExceptionMiddleware)
 
           # Insert RoutingErrorCatcher after Rails' exception handlers
-          puts "[ActiveRabbit] Inserting RoutingErrorCatcher after ShowExceptions"
+          puts "[ActiveRabbit] Inserting RoutingErrorCatcher after ShowExceptions" if Rails.env.development?
           app.config.middleware.insert_after(ActionDispatch::ShowExceptions, ActiveRabbit::Client::RoutingErrorCatcher)
 
         else
-          puts "[ActiveRabbit] No exception handlers found, using fallback configuration"
+          puts "[ActiveRabbit] No exception handlers found, using fallback configuration" if Rails.env.development?
+          app.config.middleware.use(ActiveRabbit::Middleware::ErrorCaptureMiddleware)
           app.config.middleware.use(ActiveRabbit::Client::RequestContextMiddleware)
           app.config.middleware.use(ActiveRabbit::Client::ExceptionMiddleware)
           app.config.middleware.use(ActiveRabbit::Client::RoutingErrorCatcher)
         end
 
-        puts "\n=== Final Middleware Stack ==="
-        puts "(will be printed after initialize)"
-        puts "=======================\n"
+        if Rails.env.development?
+          puts "\n=== Final Middleware Stack ==="
+          puts "(will be printed after initialize)"
+          puts "=======================\n"
+        end
 
           # Add debug wrappers in development
         if Rails.env.development?
@@ -253,10 +283,11 @@ module ActiveRabbit
         Rails.logger.info "[ActiveRabbit] Middleware configured successfully"
       end
 
-      initializer "active_rabbit.error_reporter" do
-        next unless ActiveRabbit::Client.configured?
-
-        ActiveRabbit::Client::ErrorReporter.attach!
+      initializer "active_rabbit.error_reporter" do |app|
+        # Defer attaching so application config has been applied
+        app.config.after_initialize do
+          ActiveRabbit::Client::ErrorReporter.attach!
+        end
       end
 
       initializer "active_rabbit.sidekiq" do
@@ -274,6 +305,33 @@ module ActiveRabbit
               Rails.logger.error "[ActiveRabbit] Sidekiq error handler failed: #{e.class} - #{e.message}" if defined?(Rails)
             end
           end
+        end
+      end
+
+      initializer "active_rabbit.active_job" do |app|
+        next unless defined?(ActiveJob)
+
+        # Load extension
+        begin
+          require_relative "active_job_extensions"
+        rescue LoadError
+        end
+
+        app.config.after_initialize do
+          begin
+            ActiveJob::Base.include(ActiveRabbit::Client::ActiveJobExtensions)
+          rescue => e
+            Rails.logger.error "[ActiveRabbit] Failed to include ActiveJobExtensions: #{e.message}" if defined?(Rails)
+          end
+        end
+      end
+
+      initializer "active_rabbit.action_mailer" do |app|
+        next unless defined?(ActionMailer)
+
+        begin
+          require_relative "action_mailer_patch"
+        rescue LoadError
         end
       end
 
@@ -301,6 +359,20 @@ module ActiveRabbit
             end
             # Continue with normal SIGTERM handling
             exit(0)
+          end
+        end
+      end
+
+      # Boot diagnostics to confirm wiring
+      initializer "active_rabbit.boot_diagnostics" do |app|
+        app.config.after_initialize do
+          begin
+            reporting_file, reporting_line = ActiveRabbit::Reporting.method(:report_exception).source_location
+            http_file, http_line = ActiveRabbit::Client::HttpClient.instance_method(:post_exception).source_location
+            Rails.logger.info "[ActiveRabbit] Reporting loaded from #{reporting_file}:#{reporting_line}" if defined?(Rails)
+            Rails.logger.info "[ActiveRabbit] HttpClient#post_exception from #{http_file}:#{http_line}" if defined?(Rails)
+          rescue => e
+            Rails.logger.debug "[ActiveRabbit] boot diagnostics failed: #{e.message}" if defined?(Rails)
           end
         end
       end
@@ -455,6 +527,7 @@ module ActiveRabbit
 
           ActiveRabbit::Client.track_exception(
             exception,
+            handled: true,
             context: {
               request: {
                 method: data[:method],
@@ -749,6 +822,7 @@ module ActiveRabbit
           occurred_at: Time.current.iso8601(3),
           request_path: env['PATH_INFO'],
           request_method: env['REQUEST_METHOD'],
+          handled: handled,
           error: {
             class: error.class.name,
             message: error.message,
@@ -780,7 +854,8 @@ module ActiveRabbit
           }
         }
 
-        ActiveRabbit::Client.track_exception(error, context: context)
+        # Force reporting so 404 ignore filters don't drop this
+        ActiveRabbit::Client.track_exception(error, context: context, handled: handled, force: true)
       end
     end
   end

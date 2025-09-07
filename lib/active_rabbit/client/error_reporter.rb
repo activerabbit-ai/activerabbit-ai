@@ -18,12 +18,16 @@ module ActiveRabbit
             # Only report if we haven't seen this error before
             unless $reported_errors.include?(error_key)
               $reported_errors.add(error_key)
-              ActiveRabbit::Client.track_exception(exception, context: {
+              ActiveRabbit::Client.track_exception(
+                exception,
                 handled: handled,
-                severity: severity,
-                framework_context: context || {},
-                source: 'Rails error reporter'
-              })
+                context: {
+                  handled: handled,
+                  severity: severity,
+                  framework_context: context || {},
+                  source: 'Rails error reporter'
+                }
+              )
             end
           rescue => e
             Rails.logger.error "[ActiveRabbit] Error in ErrorReporter::Subscriber#report: #{e.class} - #{e.message}" if defined?(Rails.logger)

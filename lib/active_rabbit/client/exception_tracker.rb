@@ -13,15 +13,16 @@ module ActiveRabbit
         @http_client = http_client
       end
 
-      def track_exception(exception:, context: {}, user_id: nil, tags: {})
+      def track_exception(exception:, context: {}, user_id: nil, tags: {}, handled: nil, force: false)
         return unless exception
-        return if should_ignore_exception?(exception)
+        return if !force && should_ignore_exception?(exception)
 
         exception_data = build_exception_data(
           exception: exception,
           context: context,
           user_id: user_id,
-          tags: tags
+          tags: tags,
+          handled: handled
         )
 
         # Apply before_send callback if configured
@@ -59,7 +60,7 @@ module ActiveRabbit
 
       private
 
-      def build_exception_data(exception:, context:, user_id:, tags:)
+      def build_exception_data(exception:, context:, user_id:, tags:, handled: nil)
         backtrace = parse_backtrace(exception.backtrace || [])
 
         # Build data in the format the API expects
@@ -98,6 +99,7 @@ module ActiveRabbit
           error_source: context[:error_source] || 'Application',
           error_component: context[:error_component] || 'Unknown',
           error_action: context[:error_action],
+          handled: context.key?(:handled) ? context[:handled] : handled,
 
           # Request details
           request_details: context[:request_details],
@@ -108,6 +110,11 @@ module ActiveRabbit
         # Add request context if available
         if defined?(Thread) && Thread.current[:active_rabbit_request_context]
           data[:request_context] = Thread.current[:active_rabbit_request_context]
+        end
+
+        # Add background job context if available
+        if defined?(Thread) && Thread.current[:active_rabbit_job_context]
+          data[:job_context] = Thread.current[:active_rabbit_job_context]
         end
 
         # Log what we're sending
