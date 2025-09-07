@@ -19,12 +19,22 @@ module ActiveRabbit
       config.active_rabbit = ActiveSupport::OrderedOptions.new
 
       initializer "active_rabbit.configure", after: :initialize_logger do |app|
+        puts "\n=== ActiveRabbit Configure ==="
+        puts "Environment: #{Rails.env}"
+        puts "Already configured? #{ActiveRabbit::Client.configured?}"
+        puts "================================\n"
+
         # Configure ActiveRabbit from Rails configuration
         ActiveRabbit::Client.configure do |config|
           config.environment = Rails.env
           config.logger = Rails.logger rescue Logger.new(STDOUT)
           config.release = detect_release(app)
         end
+
+        puts "\n=== ActiveRabbit Post-Configure ==="
+        puts "Now configured? #{ActiveRabbit::Client.configured?}"
+        puts "Configuration: #{ActiveRabbit::Client.configuration.inspect}"
+        puts "================================\n"
 
         # Set up exception tracking
         setup_exception_tracking(app) if ActiveRabbit::Client.configured?
@@ -49,46 +59,222 @@ module ActiveRabbit
         subscribe_to_exception_notifications
       end
 
-      initializer "active_rabbit.add_middleware" do |app|
-        next unless ActiveRabbit::Client.configured?
+      # Configure middleware after logger is initialized to avoid init cycles
+      initializer "active_rabbit.add_middleware", after: :initialize_logger do |app|
+        puts "\n=== ActiveRabbit Railtie Loading ==="
+        puts "Rails Environment: #{Rails.env}"
+        puts "Rails Middleware Stack Phase: #{app.middleware.respond_to?(:middlewares) ? 'Ready' : 'Not Ready'}"
+        puts "================================\n"
+        puts "\n=== Initial Middleware Stack ==="
+        puts "(not available at this boot phase)"
+        puts "=======================\n"
 
-        # Remove any previous placement to avoid duplicates
-        begin
-          app.middleware.delete ExceptionMiddleware
-        rescue
-        end
-
+        puts "\n=== Adding ActiveRabbit Middleware ==="
+        # Handle both development (DebugExceptions) and production (ShowExceptions)
         if defined?(ActionDispatch::DebugExceptions)
-          Rails.logger.info "[ActiveRabbit] Inserting AFTER DebugExceptions (development mode)" if defined?(Rails)
-          # DEV: be AFTER the rescuer
-          app.middleware.insert_after(
-            ActionDispatch::DebugExceptions,
-            ExceptionMiddleware
-          )
+          puts "[ActiveRabbit] Found DebugExceptions, configuring middleware..."
+
+          # First remove any existing middleware to avoid duplicates
+          begin
+            app.config.middleware.delete(ActiveRabbit::Client::ExceptionMiddleware)
+            app.config.middleware.delete(ActiveRabbit::Client::RequestContextMiddleware)
+            app.config.middleware.delete(ActiveRabbit::Client::RoutingErrorCatcher)
+            puts "[ActiveRabbit] Cleaned up existing middleware"
+          rescue => e
+            puts "[ActiveRabbit] Error cleaning middleware: #{e.message}"
+          end
+
+          # Insert middleware in the correct order
+          puts "[ActiveRabbit] Inserting middleware..."
+
+          # Insert RequestContextMiddleware first
+          puts "[ActiveRabbit] Inserting RequestContextMiddleware before RequestId"
+          app.config.middleware.insert_before(ActionDispatch::RequestId, ActiveRabbit::Client::RequestContextMiddleware)
+
+          # Insert ExceptionMiddleware before Rails' exception handlers
+          puts "[ActiveRabbit] Inserting ExceptionMiddleware before DebugExceptions"
+          app.config.middleware.insert_before(ActionDispatch::DebugExceptions, ActiveRabbit::Client::ExceptionMiddleware)
+
+          # Insert RoutingErrorCatcher after Rails' exception handlers
+          puts "[ActiveRabbit] Inserting RoutingErrorCatcher after DebugExceptions"
+          app.config.middleware.insert_after(ActionDispatch::DebugExceptions, ActiveRabbit::Client::RoutingErrorCatcher)
+
+          puts "[ActiveRabbit] Middleware insertion complete"
+
         elsif defined?(ActionDispatch::ShowExceptions)
-          Rails.logger.info "[ActiveRabbit] Inserting AFTER ShowExceptions (production mode)" if defined?(Rails)
-          # PROD: be AFTER the rescuer
-          app.middleware.insert_after(
-            ActionDispatch::ShowExceptions,
-            ExceptionMiddleware
-          )
+          puts "[ActiveRabbit] Found ShowExceptions, configuring middleware..."
+
+          # First remove any existing middleware to avoid duplicates
+          begin
+            app.config.middleware.delete(ActiveRabbit::Client::ExceptionMiddleware)
+            app.config.middleware.delete(ActiveRabbit::Client::RequestContextMiddleware)
+            app.config.middleware.delete(ActiveRabbit::Client::RoutingErrorCatcher)
+            puts "[ActiveRabbit] Cleaned up existing middleware"
+          rescue => e
+            puts "[ActiveRabbit] Error cleaning middleware: #{e.message}"
+          end
+
+          # Insert middleware in the correct order
+          puts "[ActiveRabbit] Inserting middleware..."
+
+          # Insert RequestContextMiddleware first
+          puts "[ActiveRabbit] Inserting RequestContextMiddleware before RequestId"
+          app.config.middleware.insert_before(ActionDispatch::RequestId, ActiveRabbit::Client::RequestContextMiddleware)
+
+          # Insert ExceptionMiddleware before Rails' exception handlers
+          puts "[ActiveRabbit] Inserting ExceptionMiddleware before ShowExceptions"
+          app.config.middleware.insert_before(ActionDispatch::ShowExceptions, ActiveRabbit::Client::ExceptionMiddleware)
+
+          # Insert RoutingErrorCatcher after Rails' exception handlers
+          puts "[ActiveRabbit] Inserting RoutingErrorCatcher after ShowExceptions"
+          app.config.middleware.insert_after(ActionDispatch::ShowExceptions, ActiveRabbit::Client::RoutingErrorCatcher)
+
         else
-          Rails.logger.info "[ActiveRabbit] Fallback: using ExceptionMiddleware" if defined?(Rails)
-          # Fallback: close to the app
-          app.middleware.use ExceptionMiddleware
+          puts "[ActiveRabbit] No exception handlers found, using fallback configuration"
+          app.config.middleware.use(ActiveRabbit::Client::RequestContextMiddleware)
+          app.config.middleware.use(ActiveRabbit::Client::ExceptionMiddleware)
+          app.config.middleware.use(ActiveRabbit::Client::RoutingErrorCatcher)
         end
 
-        # Request context middleware can stay early/anywhere
-        app.middleware.insert_before(
-          ActionDispatch::RequestId,
-          RequestContextMiddleware
-        )
+        puts "\n=== Final Middleware Stack ==="
+        puts "(will be printed after initialize)"
+        puts "=======================\n"
+
+          # Add debug wrappers in development
+        if Rails.env.development?
+          # Wrap ExceptionMiddleware for detailed error tracking
+          ActiveRabbit::Client::ExceptionMiddleware.class_eval do
+            alias_method :__ar_original_call, :call unless method_defined?(:__ar_original_call)
+            def call(env)
+              puts "\n=== ExceptionMiddleware Enter ==="
+              puts "Path: #{env['PATH_INFO']}"
+              puts "Method: #{env['REQUEST_METHOD']}"
+              puts "Current Exception: #{env['action_dispatch.exception']&.class} - #{env['action_dispatch.exception']&.message}"
+              puts "Current Error: #{env['action_dispatch.error']&.class} - #{env['action_dispatch.error']&.message}"
+              puts "Rack Exception: #{env['rack.exception']&.class} - #{env['rack.exception']&.message}"
+              puts "Exception Backtrace: #{env['action_dispatch.exception']&.backtrace&.first(3)&.join("\n                    ")}"
+              puts "Error Backtrace: #{env['action_dispatch.error']&.backtrace&.first(3)&.join("\n                ")}"
+              puts "Rack Backtrace: #{env['rack.exception']&.backtrace&.first(3)&.join("\n               ")}"
+              puts "============================\n"
+
+              begin
+                status, headers, body = __ar_original_call(env)
+                puts "\n=== ExceptionMiddleware Exit (Success) ==="
+                puts "Status: #{status}"
+                puts "Headers: #{headers.inspect}"
+                puts "Final Exception: #{env['action_dispatch.exception']&.class} - #{env['action_dispatch.exception']&.message}"
+                puts "Final Error: #{env['action_dispatch.error']&.class} - #{env['action_dispatch.error']&.message}"
+                puts "Final Rack Exception: #{env['rack.exception']&.class} - #{env['rack.exception']&.message}"
+                puts "Final Exception Backtrace: #{env['action_dispatch.exception']&.backtrace&.first(3)&.join("\n                          ")}"
+                puts "Final Error Backtrace: #{env['action_dispatch.error']&.backtrace&.first(3)&.join("\n                      ")}"
+                puts "Final Rack Backtrace: #{env['rack.exception']&.backtrace&.first(3)&.join("\n                     ")}"
+                puts "===========================\n"
+                [status, headers, body]
+              rescue => e
+                puts "\n=== ExceptionMiddleware Exit (Error) ==="
+                puts "Error: #{e.class} - #{e.message}"
+                puts "Error Backtrace: #{e.backtrace&.first(3)&.join("\n              ")}"
+                puts "Original Exception: #{env['action_dispatch.exception']&.class} - #{env['action_dispatch.exception']&.message}"
+                puts "Original Error: #{env['action_dispatch.error']&.class} - #{env['action_dispatch.error']&.message}"
+                puts "Original Rack Exception: #{env['rack.exception']&.class} - #{env['rack.exception']&.message}"
+                puts "Original Exception Backtrace: #{env['action_dispatch.exception']&.backtrace&.first(3)&.join("\n                          ")}"
+                puts "Original Error Backtrace: #{env['action_dispatch.error']&.backtrace&.first(3)&.join("\n                      ")}"
+                puts "Original Rack Backtrace: #{env['rack.exception']&.backtrace&.first(3)&.join("\n                     ")}"
+                puts "===========================\n"
+                raise
+              end
+            end
+          end
+
+          # Wrap RoutingErrorCatcher for detailed error tracking
+          ActiveRabbit::Client::RoutingErrorCatcher.class_eval do
+            alias_method :__ar_routing_original_call, :call unless method_defined?(:__ar_routing_original_call)
+            def call(env)
+              puts "\n=== RoutingErrorCatcher Enter ==="
+              puts "Path: #{env['PATH_INFO']}"
+              puts "Method: #{env['REQUEST_METHOD']}"
+              puts "Status: #{env['action_dispatch.exception']&.class}"
+              puts "============================\n"
+
+              begin
+                status, headers, body = __ar_routing_original_call(env)
+                puts "\n=== RoutingErrorCatcher Exit (Success) ==="
+                puts "Status: #{status}"
+                puts "===========================\n"
+                [status, headers, body]
+              rescue => e
+                puts "\n=== RoutingErrorCatcher Exit (Error) ==="
+                puts "Error: #{e.class} - #{e.message}"
+                puts "Backtrace: #{e.backtrace&.first(3)&.join("\n           ")}"
+                puts "===========================\n"
+                raise
+              end
+            end
+          end
+        end
+
+        # In development, add a hook to verify middleware after initialization
+        if Rails.env.development?
+          app.config.after_initialize do
+            Rails.logger.info "\n=== ActiveRabbit Configuration ==="
+            Rails.logger.info "Version: #{ActiveRabbit::Client::VERSION}"
+            Rails.logger.info "Environment: #{Rails.env}"
+            Rails.logger.info "API URL: #{ActiveRabbit::Client.configuration.api_url}"
+            Rails.logger.info "================================"
+
+            Rails.logger.info "\n=== Middleware Stack ==="
+            (Rails.application.middleware.middlewares rescue []).each do |mw|
+              klass = (mw.respond_to?(:klass) ? mw.klass.name : mw.to_s) rescue mw.inspect
+              Rails.logger.info "  #{klass}"
+            end
+            Rails.logger.info "======================="
+
+            # Skip missing-middleware warnings in development since we may inject via alternate paths
+            unless Rails.env.development?
+              # Verify our middleware is present
+              our_middleware = [
+                ActiveRabbit::Client::ExceptionMiddleware,
+                ActiveRabbit::Client::RequestContextMiddleware,
+                ActiveRabbit::Client::RoutingErrorCatcher
+              ]
+
+              stack_list = (Rails.application.middleware.middlewares rescue [])
+              missing = our_middleware.reject { |m| stack_list.any? { |x| (x.respond_to?(:klass) ? x.klass == m : false) } }
+
+              if missing.any?
+                Rails.logger.warn "\n⚠️  Missing ActiveRabbit middleware:"
+                missing.each { |m| Rails.logger.warn "  - #{m}" }
+                Rails.logger.warn "This might affect error tracking!"
+              end
+            end
+          end
+        end
+
+        Rails.logger.info "[ActiveRabbit] Middleware configured successfully"
       end
 
       initializer "active_rabbit.error_reporter" do
         next unless ActiveRabbit::Client.configured?
 
         ActiveRabbit::Client::ErrorReporter.attach!
+      end
+
+      initializer "active_rabbit.sidekiq" do
+        next unless defined?(Sidekiq)
+
+        # Report unhandled Sidekiq job errors
+        Sidekiq.configure_server do |config|
+          config.error_handlers << proc do |exception, context|
+            begin
+              ActiveRabbit::Client.track_exception(
+                exception,
+                context: { source: 'sidekiq', job: context }
+              )
+            rescue => e
+              Rails.logger.error "[ActiveRabbit] Sidekiq error handler failed: #{e.class} - #{e.message}" if defined?(Rails)
+            end
+          end
+        end
       end
 
       initializer "active_rabbit.setup_shutdown_hooks" do
@@ -400,26 +586,47 @@ module ActiveRabbit
         # debug start - using Rails.logger to ensure it appears in development.log
         Rails.logger.info "[AR] ExceptionMiddleware ENTER path=#{env['PATH_INFO']}" if defined?(Rails)
         warn "[AR] ExceptionMiddleware ENTER path=#{env['PATH_INFO']}"
+        warn "[AR] Current exceptions in env:"
+        warn "  - action_dispatch.exception: #{env['action_dispatch.exception']&.class}"
+        warn "  - rack.exception: #{env['rack.exception']&.class}"
+        warn "  - action_dispatch.error: #{env['action_dispatch.error']&.class}"
 
-        status, headers, body = @app.call(env)
+        begin
+          # Try to call the app, catch any exceptions
+          status, headers, body = @app.call(env)
+          warn "[AR] App call completed with status: #{status}"
 
-        # Secondary safety: check env for exceptions (may be populated by Rails rescuers)
-        if (ex = env["action_dispatch.exception"] || env["rack.exception"] || env["action_dispatch.error"])
-          Rails.logger.info "[AR] env exception present: #{ex.class}: #{ex.message}" if defined?(Rails)
-          warn "[AR] env exception present: #{ex.class}: #{ex.message}"
-          safe_report(ex, env, 'Rails rescued exception')
-        else
-          Rails.logger.info "[AR] env exception NOT present" if defined?(Rails)
-          warn "[AR] env exception NOT present"
+          # Check for exceptions in env after app call
+          if (ex = env["action_dispatch.exception"] || env["rack.exception"] || env["action_dispatch.error"])
+            Rails.logger.info "[AR] env exception present: #{ex.class}: #{ex.message}" if defined?(Rails)
+            warn "[AR] env exception present: #{ex.class}: #{ex.message}"
+            warn "[AR] Exception backtrace: #{ex.backtrace&.first(3)&.join("\n           ")}"
+            safe_report(ex, env, 'Rails rescued exception')
+          else
+            Rails.logger.info "[AR] env exception NOT present" if defined?(Rails)
+            warn "[AR] env exception NOT present"
+            warn "[AR] Final env check:"
+            warn "  - action_dispatch.exception: #{env['action_dispatch.exception']&.class}"
+            warn "  - rack.exception: #{env['rack.exception']&.class}"
+            warn "  - action_dispatch.error: #{env['action_dispatch.error']&.class}"
+          end
+
+          # Return the response
+          [status, headers, body]
+        rescue => e
+          # Primary path: catch raw exceptions before Rails rescuers
+          Rails.logger.info "[AR] RESCUE caught: #{e.class}: #{e.message}" if defined?(Rails)
+          warn "[AR] RESCUE caught: #{e.class}: #{e.message}"
+          warn "[AR] Rescue backtrace: #{e.backtrace&.first(3)&.join("\n           ")}"
+
+          # Report the exception
+          safe_report(e, env, 'Raw exception caught')
+
+          # Let Rails handle the exception
+          env["action_dispatch.exception"] = e
+          env["rack.exception"] = e
+          raise
         end
-
-        [status, headers, body]
-      rescue => e
-        # Primary path: catch raw exceptions before Rails rescuers
-        Rails.logger.info "[AR] RESCUE caught: #{e.class}: #{e.message}" if defined?(Rails)
-        warn "[AR] RESCUE caught: #{e.class}: #{e.message}"
-        safe_report(e, env, 'Raw exception caught')
-        raise  # let Rails still render its error page
       end
 
       private
@@ -427,30 +634,37 @@ module ActiveRabbit
       def safe_report(exception, env, source)
         begin
           request = ActionDispatch::Request.new(env)
+          warn "[AR] safe_report called for #{source}"
+          warn "[AR] Exception: #{exception.class.name} - #{exception.message}"
+          warn "[AR] Backtrace: #{exception.backtrace&.first(3)&.join("\n           ")}"
 
-          ActiveRabbit::Client.track_exception(
-            exception,
-            context: {
-              request: {
-                method: request.method,
-                path: request.path,
-                query_string: request.query_string,
-                user_agent: request.headers["User-Agent"],
-                ip_address: request.remote_ip,
-                referer: request.referer,
-                headers: sanitize_headers(request.headers)
-              },
-              middleware: {
-                caught_by: 'ExceptionMiddleware',
-                source: source,
-                timestamp: Time.now.iso8601(3)
-              }
+          context = {
+            request: {
+              method: request.method,
+              path: request.path,
+              query_string: request.query_string,
+              user_agent: request.headers["User-Agent"],
+              ip_address: request.remote_ip,
+              referer: request.referer,
+              headers: sanitize_headers(request.headers)
+            },
+            middleware: {
+              caught_by: 'ExceptionMiddleware',
+              source: source,
+              timestamp: Time.now.iso8601(3)
             }
-          )
+          }
+
+          warn "[AR] Tracking with context: #{context.inspect}"
+
+          result = ActiveRabbit::Client.track_exception(exception, context: context)
+          warn "[AR] Track result: #{result.inspect}"
 
           Rails.logger.info "[ActiveRabbit] Tracked #{source}: #{exception.class.name} - #{exception.message}" if defined?(Rails)
         rescue => tracking_error
           # Log tracking errors but don't let them interfere with exception handling
+          warn "[AR] Error in safe_report: #{tracking_error.class} - #{tracking_error.message}"
+          warn "[AR] Error backtrace: #{tracking_error.backtrace&.first(3)&.join("\n           ")}"
           Rails.logger.error "[ActiveRabbit] Error tracking exception: #{tracking_error.message}" if defined?(Rails)
         end
       end
@@ -467,6 +681,106 @@ module ActiveRabbit
           end
         end
         safe_headers
+      end
+    end
+
+    # Middleware for catching routing errors
+    class RoutingErrorCatcher
+      def initialize(app) = @app = app
+
+      def call(env)
+        status, headers, body = @app.call(env)
+
+        if status == 404
+          Rails.logger.debug "[ActiveRabbit] RoutingErrorCatcher: 404 detected for #{env['PATH_INFO']}"
+          exception = env["action_dispatch.exception"] || env["rack.exception"] || env["action_dispatch.error"]
+
+          if exception && exception.is_a?(ActionController::RoutingError)
+            Rails.logger.debug "[ActiveRabbit] Routing error caught: #{exception.message}"
+            track_routing_error(exception, env)
+          else
+            # If no exception found in env, create one manually for 404s on non-asset paths
+            if env['PATH_INFO'] && !env['PATH_INFO'].match?(/\.(css|js|png|jpg|gif|ico|svg)$/)
+              synthetic_error = create_synthetic_error(env)
+              track_routing_error(synthetic_error, env)
+            end
+          end
+        end
+
+        [status, headers, body]
+      rescue => e
+        # Catch any routing errors that weren't handled by Rails
+        if e.is_a?(ActionController::RoutingError)
+          Rails.logger.debug "[ActiveRabbit] Unhandled routing error caught: #{e.message}"
+          track_routing_error(e, env, handled: false)
+        end
+        raise
+      end
+
+      private
+
+      def create_synthetic_error(env)
+        error = ActionController::RoutingError.new("No route matches [#{env['REQUEST_METHOD']}] \"#{env['PATH_INFO']}\"")
+        error.set_backtrace([
+          "#{Rails.root}/config/routes.rb:1:in `route_not_found'",
+          "#{__FILE__}:#{__LINE__}:in `call'",
+          "actionpack/lib/action_dispatch/middleware/debug_exceptions.rb:31:in `call'"
+        ])
+        error
+      end
+
+      def track_routing_error(error, env, handled: true)
+        return unless defined?(ActiveRabbit::Client)
+
+        context = {
+          controller_action: 'Routing#not_found',
+          error_type: 'Route Not Found',
+          error_message: error.message,
+          error_location: error.backtrace&.first,
+          error_severity: :warning,
+          error_status: 404,
+          error_source: 'Router',
+          error_component: 'ActionDispatch',
+          error_action: 'route_lookup',
+          request_details: "#{env['REQUEST_METHOD']} #{env['PATH_INFO']} (No Route)",
+          response_time: "N/A (Routing Error)",
+          routing_info: "No matching route for path: #{env['PATH_INFO']}",
+          environment: Rails.env,
+          occurred_at: Time.current.iso8601(3),
+          request_path: env['PATH_INFO'],
+          request_method: env['REQUEST_METHOD'],
+          error: {
+            class: error.class.name,
+            message: error.message,
+            backtrace_preview: error.backtrace&.first(3),
+            handled: handled,
+            severity: :warning,
+            framework: 'Rails',
+            component: 'Router',
+            error_group: 'Routing Error',
+            error_type: 'route_not_found'
+          },
+          request: {
+            method: env['REQUEST_METHOD'],
+            path: env['PATH_INFO'],
+            query_string: env['QUERY_STRING'],
+            user_agent: env['HTTP_USER_AGENT'],
+            ip_address: env['REMOTE_ADDR']
+          },
+          routing: {
+            attempted_path: env['PATH_INFO'],
+            available_routes: 'See Rails routes',
+            error_type: 'route_not_found'
+          },
+          source: 'routing_error_catcher',
+          tags: {
+            error_type: 'routing_error',
+            handled: handled,
+            severity: 'warning'
+          }
+        }
+
+        ActiveRabbit::Client.track_exception(error, context: context)
       end
     end
   end

@@ -11,12 +11,12 @@ module ActiveRabbit
       attr_accessor :batch_size, :flush_interval, :queue_size
       attr_accessor :enable_performance_monitoring, :enable_n_plus_one_detection
       attr_accessor :enable_pii_scrubbing, :pii_fields
-      attr_accessor :ignored_exceptions, :ignored_user_agents
+      attr_accessor :ignored_exceptions, :ignored_user_agents, :ignore_404
       attr_accessor :release, :server_name, :logger
       attr_accessor :before_send_event, :before_send_exception
 
       def initialize
-        @api_url = ENV.fetch("active_rabbit_API_URL", "https://api.activerabbit.com")
+        @api_url = ENV.fetch("active_rabbit_API_URL", "https://api.activerabbit.ai")
         @api_key = ENV["active_rabbit_API_KEY"]
         @project_id = ENV["active_rabbit_PROJECT_ID"]
         @environment = ENV.fetch("active_rabbit_ENVIRONMENT", detect_environment)
@@ -45,9 +45,10 @@ module ActiveRabbit
         ]
 
         # Filtering
+        # default ignores (404 controlled by ignore_404)
+        @ignore_404 = true
         @ignored_exceptions = %w[
           ActiveRecord::RecordNotFound
-          ActionController::RoutingError
           ActionController::InvalidAuthenticityToken
           CGI::Session::CookieStore::TamperedWithCookie
         ]
@@ -83,6 +84,14 @@ module ActiveRabbit
 
       def should_ignore_exception?(exception)
         return false unless exception
+        # Special-case 404 via flag
+        if @ignore_404
+          begin
+            return true if exception.is_a?(ActionController::RoutingError)
+          rescue NameError
+            # Ignore if AC not loaded
+          end
+        end
 
         ignored_exceptions.any? do |ignored|
           case ignored

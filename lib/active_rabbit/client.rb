@@ -62,12 +62,24 @@ module ActiveRabbit
       def track_exception(exception, context: {}, user_id: nil, tags: {})
         return unless configured?
 
-        exception_tracker.track_exception(
+        # Merge tags into context for proper API formatting
+        context_with_tags = context.merge(
+          tags: (context[:tags] || {}).merge(tags)
+        )
+
+        # Track the exception
+        result = exception_tracker.track_exception(
           exception: exception,
-          context: context,
+          context: context_with_tags,
           user_id: user_id,
           tags: tags
         )
+
+        # Log the result
+        configuration.logger&.info("[ActiveRabbit] Exception tracked: #{exception.class.name}")
+        configuration.logger&.debug("[ActiveRabbit] Exception tracking result: #{result.inspect}")
+
+        result
       end
 
       def track_performance(name, duration_ms, metadata: {})

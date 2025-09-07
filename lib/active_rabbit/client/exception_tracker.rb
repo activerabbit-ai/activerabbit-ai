@@ -30,7 +30,27 @@ module ActiveRabbit
           return unless exception_data # Callback can filter out exceptions by returning nil
         end
 
-        http_client.post_exception(exception_data)
+        # Send exception to API and return response
+        configuration.logger&.info("[ActiveRabbit] Preparing to send exception: #{exception.class.name}")
+        configuration.logger&.debug("[ActiveRabbit] Exception data: #{exception_data.inspect}")
+
+        # Ensure we have required fields
+        unless exception_data[:exception_class] && exception_data[:message] && exception_data[:backtrace]
+          configuration.logger&.error("[ActiveRabbit] Missing required fields in exception data")
+          configuration.logger&.debug("[ActiveRabbit] Available fields: #{exception_data.keys.inspect}")
+          return nil
+        end
+
+        response = http_client.post_exception(exception_data)
+
+        if response.nil?
+          configuration.logger&.error("[ActiveRabbit] Failed to send exception - both primary and fallback endpoints failed")
+          return nil
+        end
+
+        configuration.logger&.info("[ActiveRabbit] Exception successfully sent to API")
+        configuration.logger&.debug("[ActiveRabbit] API Response: #{response.inspect}")
+        response
       end
 
       def flush
@@ -42,29 +62,59 @@ module ActiveRabbit
       def build_exception_data(exception:, context:, user_id:, tags:)
         backtrace = parse_backtrace(exception.backtrace || [])
 
+        # Build data in the format the API expects
         data = {
-          type: exception.class.name,
+          # Required fields
+          exception_class: exception.class.name,
           message: exception.message,
-          backtrace: backtrace,
-          fingerprint: generate_fingerprint(exception),
-          timestamp: Time.now.iso8601(3),
-          environment: configuration.environment,
-          release: configuration.release,
+          backtrace: backtrace.map { |frame| frame[:line] },
+
+          # Timing and environment
+          occurred_at: Time.now.iso8601(3),
+          environment: configuration.environment || 'development',
+          release_version: configuration.release,
           server_name: configuration.server_name,
+
+          # Context from the error
+          controller_action: context[:controller_action],
+          request_path: context[:request_path],
+          request_method: context[:request_method],
+
+          # Additional context
           context: scrub_pii(context || {}),
-          tags: tags || {}
+          tags: tags || {},
+          user_id: user_id,
+          project_id: configuration.project_id,
+
+          # Runtime info
+          runtime_context: build_runtime_context,
+
+          # Error details (for better UI display)
+          error_type: context[:error_type] || exception.class.name,
+          error_message: context[:error_message] || exception.message,
+          error_location: context[:error_location] || backtrace.first&.dig(:line),
+          error_severity: context[:error_severity] || :error,
+          error_status: context[:error_status] || 500,
+          error_source: context[:error_source] || 'Application',
+          error_component: context[:error_component] || 'Unknown',
+          error_action: context[:error_action],
+
+          # Request details
+          request_details: context[:request_details],
+          response_time: context[:response_time],
+          routing_info: context[:routing_info]
         }
-
-        data[:user_id] = user_id if user_id
-        data[:project_id] = configuration.project_id if configuration.project_id
-
-        # Add runtime context
-        data[:runtime_context] = build_runtime_context
 
         # Add request context if available
         if defined?(Thread) && Thread.current[:active_rabbit_request_context]
           data[:request_context] = Thread.current[:active_rabbit_request_context]
         end
+
+        # Log what we're sending
+        configuration.logger&.debug("[ActiveRabbit] Built exception data:")
+        configuration.logger&.debug("[ActiveRabbit] - Required fields: class=#{data[:exception_class]}, message=#{data[:message]}, backtrace=#{data[:backtrace]&.first}")
+        configuration.logger&.debug("[ActiveRabbit] - Error details: type=#{data[:error_type]}, source=#{data[:error_source]}, component=#{data[:error_component]}")
+        configuration.logger&.debug("[ActiveRabbit] - Request info: path=#{data[:request_path]}, method=#{data[:request_method]}, action=#{data[:controller_action]}")
 
         data
       end
