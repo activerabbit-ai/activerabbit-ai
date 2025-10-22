@@ -236,6 +236,65 @@ ActiveRabbit::Client.configure do |config|
 end
 ```
 
+### Recommended Exceptions to Capture
+
+Below is a practical list of exceptions APMs should capture by default in a Rails app. Some are optional/noisy and typically excluded unless needed.
+
+- Core (Ruby/Stdlib)
+  - `StandardError`, `RuntimeError`, `NoMethodError`, `NameError`, `ArgumentError`, `TypeError`, `IndexError`, `KeyError`
+  - `Timeout::Error`, `JSON::ParserError`, `OpenSSL::SSL::SSLError`, `SocketError`, `Errno::ECONNREFUSED`/`ETIMEDOUT`/`EHOSTUNREACH`
+
+- ActionPack / Controllers
+  - `ActionController::ParameterMissing`
+  - `ActionController::BadRequest`
+  - `ActionController::InvalidAuthenticityToken` (optional; can be noisy)
+  - `ActionController::UnknownFormat`
+  - `ActionController::NotImplemented`
+
+- Routing (optional/noisy)
+  - `ActionController::RoutingError` (commonly excluded; enable only if needed)
+
+- Views / Templates
+  - `ActionView::Template::Error`
+  - `ActionView::MissingTemplate`
+  - `Encoding::UndefinedConversionError` (template rendering)
+
+- ActiveRecord / Database
+  - `ActiveRecord::RecordInvalid`
+  - `ActiveRecord::RecordNotFound` (optional; may be expected business logic)
+  - `ActiveRecord::StatementInvalid` (includes `PG::Error` subclasses)
+  - `ActiveRecord::Deadlocked`, `ActiveRecord::LockWaitTimeout`
+  - `ActiveRecord::RecordNotUnique`
+  - `ActiveRecord::ConnectionTimeoutError`
+  - `ActiveRecord::SerializationFailure`
+
+- Background Jobs (ActiveJob/Sidekiq)
+  - `ActiveJob::DeserializationError`
+  - Any unhandled exception raised in job `perform`
+
+- Networking/HTTP Clients
+  - `Net::OpenTimeout`, `Net::ReadTimeout`
+  - `Faraday::TimeoutError`, `Faraday::ConnectionFailed`
+  - `HTTP::Error` (http.rb), `RestClient::Exception`
+
+- Caching/Redis
+  - `Redis::BaseError`, `Redis::TimeoutError`, `Redis::CannotConnectError`
+
+- ActiveStorage
+  - `ActiveStorage::IntegrityError`
+  - `ActiveStorage::FileNotFoundError`
+
+- ActionCable
+  - `ActionCable::Connection::Authorization::UnauthorizedError` (if applicable)
+
+- Security/Crypto
+  - `ActiveSupport::MessageEncryptor::InvalidMessage`
+  - `ActiveSupport::MessageVerifier::InvalidSignature`
+
+Notes:
+- Optional/noisy: `RoutingError`, `RecordNotFound`, `InvalidAuthenticityToken`. Consider monitoring via metrics or targeted capture.
+- If exceptions are rescued by your app, enable reporting of rescued exceptions (`before_send_exception`/custom middleware) so they are still tracked when appropriate.
+
 ### Callbacks
 
 ```ruby
