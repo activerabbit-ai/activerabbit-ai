@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.3] - 2025-10-22
+
+### Fixed
+- **Critical bug fix**: Removed reference to non-existent `ActiveRabbit::Client::Dedupe` class in error reporter
+- Error tracking now works properly via Rails error reporter integration
+- Errors are successfully captured and sent to ActiveRabbit API
+
 ## [0.4.2] - 2025-01-04
 
 ### Fixed

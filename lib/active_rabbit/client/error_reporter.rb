@@ -16,15 +16,12 @@ module ActiveRabbit
             # Generate a unique key for this error
             error_key = "#{exception.class.name}:#{exception.message}:#{exception.backtrace&.first}"
 
-            # Only report if we haven't seen this error before and not deduped in short window
+            # Only report if we haven't seen this error before
             unless $reported_errors.include?(error_key)
               $reported_errors.add(error_key)
 
-              dedupe_context = { request_id: (context && (context[:request_id] || context[:request]&.[](:request_id))) }
-              unless ActiveRabbit::Client::Dedupe.seen_recently?(exception, dedupe_context)
-                enriched = build_enriched_context(exception, handled: handled, severity: severity, context: context)
-                ActiveRabbit::Client.track_exception(exception, handled: handled, context: enriched)
-              end
+              enriched = build_enriched_context(exception, handled: handled, severity: severity, context: context)
+              ActiveRabbit::Client.track_exception(exception, handled: handled, context: enriched)
             end
           rescue => e
             Rails.logger.error "[ActiveRabbit] Error in ErrorReporter::Subscriber#report: #{e.class} - #{e.message}" if defined?(Rails.logger)
