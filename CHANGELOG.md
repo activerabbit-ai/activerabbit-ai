@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.4] - 2025-10-22
+
+### Improved
+- **Time-based error deduplication**: Changed from "once per server lifecycle" to time-window based
+- Added `dedupe_window` configuration option (default: 300 seconds / 5 minutes)
+- Set `dedupe_window` to `0` to disable deduplication (useful for development/testing)
+- Automatic memory cleanup of old dedupe entries (keeps last hour only)
+- Better logging when errors are deduplicated
+
+### Fixed
+- Error deduplication no longer prevents same error from being reported after time window expires
+- Memory leak prevention by cleaning old deduplication entries
+
 ## [0.4.3] - 2025-10-22
 
 ### Fixed

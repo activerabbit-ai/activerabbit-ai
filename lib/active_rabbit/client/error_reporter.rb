@@ -10,18 +10,32 @@ module ActiveRabbit
           begin
             Rails.logger.info "[ActiveRabbit] Error reporter caught: #{exception.class}: #{exception.message}" if defined?(Rails.logger)
 
-            # Initialize de-dup set
-            $reported_errors ||= Set.new
+            # Time-based deduplication: track errors with timestamps
+            $reported_errors ||= {}
 
             # Generate a unique key for this error
             error_key = "#{exception.class.name}:#{exception.message}:#{exception.backtrace&.first}"
 
-            # Only report if we haven't seen this error before
-            unless $reported_errors.include?(error_key)
-              $reported_errors.add(error_key)
+            # Get dedupe window from config (default 5 minutes, 0 = disabled)
+            dedupe_window = defined?(ActiveRabbit::Client.configuration.dedupe_window) ?
+                            ActiveRabbit::Client.configuration.dedupe_window : 300
+
+            current_time = Time.now.to_i
+            last_seen = $reported_errors[error_key]
+
+            # Report if: never seen before, OR dedupe disabled (0), OR outside dedupe window
+            should_report = last_seen.nil? || dedupe_window == 0 || (current_time - last_seen) > dedupe_window
+
+            if should_report
+              $reported_errors[error_key] = current_time
+
+              # Clean old entries to prevent memory leak (keep last hour)
+              $reported_errors.delete_if { |_, timestamp| current_time - timestamp > 3600 }
 
               enriched = build_enriched_context(exception, handled: handled, severity: severity, context: context)
               ActiveRabbit::Client.track_exception(exception, handled: handled, context: enriched)
+            else
+              Rails.logger.debug "[ActiveRabbit] Error deduplicated (last seen #{current_time - last_seen}s ago)" if defined?(Rails.logger)
             end
           rescue => e
             Rails.logger.error "[ActiveRabbit] Error in ErrorReporter::Subscriber#report: #{e.class} - #{e.message}" if defined?(Rails.logger)

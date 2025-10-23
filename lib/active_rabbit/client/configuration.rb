@@ -14,6 +14,7 @@ module ActiveRabbit
       attr_accessor :ignored_exceptions, :ignored_user_agents, :ignore_404
       attr_accessor :release, :server_name, :logger
       attr_accessor :before_send_event, :before_send_exception
+      attr_accessor :dedupe_window  # Time window in seconds for error deduplication (0 = disabled)
 
       def initialize
         @api_url = ENV.fetch("active_rabbit_API_URL", "https://api.activerabbit.ai")
@@ -59,6 +60,9 @@ module ActiveRabbit
           /facebookexternalhit/i,
           /Twitterbot/i
         ]
+
+        # Deduplication (0 = disabled, time in seconds for same error to be considered duplicate)
+        @dedupe_window = 300  # 5 minutes by default
 
         # Metadata
         @release = detect_release
