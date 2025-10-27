@@ -46,15 +46,18 @@ module ActiveRabbit
         setup_exception_tracking(app) if ActiveRabbit::Client.configured?
       end
 
-      initializer "active_rabbit.subscribe_to_notifications" do |app|
-        # Defer subscription until after application initializers (configuration complete)
+      initializer "active_rabbit.subscribe_to_notifications", after: :load_config_initializers do |app|
+        Rails.logger.info "[ActiveRabbit] Setting up performance notifications subscriptions"
+        # Subscribe regardless; each handler guards on configured?
+        subscribe_to_controller_events
+        subscribe_to_active_record_events
+        subscribe_to_action_view_events
+        subscribe_to_action_mailer_events if defined?(ActionMailer)
+        subscribe_to_exception_notifications
+        Rails.logger.info "[ActiveRabbit] Subscriptions setup complete"
+
+        # Defer complex subscriptions until after initialization
         app.config.after_initialize do
-          # Subscribe regardless; each handler guards on configured?
-          subscribe_to_controller_events
-          subscribe_to_active_record_events
-          subscribe_to_action_view_events
-          subscribe_to_action_mailer_events if defined?(ActionMailer)
-          subscribe_to_exception_notifications
 
           # Fallback: low-level rack.exception subscription (older Rails and deep middleware errors)
           ActiveSupport::Notifications.subscribe("rack.exception") do |*args|
@@ -387,9 +390,18 @@ module ActiveRabbit
       end
 
       def subscribe_to_controller_events
+        Rails.logger.info "[ActiveRabbit] Subscribing to controller events (configured=#{ActiveRabbit::Client.configured?})"
+
         ActiveSupport::Notifications.subscribe "process_action.action_controller" do |name, started, finished, unique_id, payload|
           begin
+            unless ActiveRabbit::Client.configured?
+              Rails.logger.debug "[ActiveRabbit] Skipping performance tracking - not configured"
+              return
+            end
+
             duration_ms = ((finished - started) * 1000).round(2)
+
+            Rails.logger.info "[ActiveRabbit] 📊 Controller action: #{payload[:controller]}##{payload[:action]} - #{duration_ms}ms"
 
             ActiveRabbit::Client.track_performance(
               "controller.action",
