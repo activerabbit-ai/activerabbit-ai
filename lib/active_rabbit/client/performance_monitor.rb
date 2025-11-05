@@ -77,10 +77,22 @@ module ActiveRabbit
       private
 
       def build_performance_data(name:, duration_ms:, metadata:)
+        metadata = metadata || {}
+
+        # Extract important fields from metadata for top-level inclusion
+        controller = metadata[:controller] || metadata["controller"]
+        action = metadata[:action] || metadata["action"]
+        controller_action = "#{controller}##{action}" if controller && action
+
         data = {
           name: name.to_s,
           duration_ms: duration_ms.to_f,
-          metadata: scrub_pii(metadata || {}),
+          db_duration_ms: metadata[:db_runtime] || metadata["db_runtime"],
+          view_duration_ms: metadata[:view_runtime] || metadata["view_runtime"],
+          controller_action: controller_action,
+          request_path: metadata[:path] || metadata["path"],
+          request_method: metadata[:method] || metadata["method"],
+          metadata: scrub_pii(metadata),
           timestamp: Time.now.iso8601(3),
           environment: configuration.environment,
           release: configuration.release,

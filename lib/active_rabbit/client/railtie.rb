@@ -402,6 +402,7 @@ module ActiveRabbit
             duration_ms = ((finished - started) * 1000).round(2)
 
             Rails.logger.info "[ActiveRabbit] 📊 Controller action: #{payload[:controller]}##{payload[:action]} - #{duration_ms}ms"
+            Rails.logger.info "[ActiveRabbit] 📊 DB runtime: #{payload[:db_runtime]}, View runtime: #{payload[:view_runtime]}"
 
             ActiveRabbit::Client.track_performance(
               "controller.action",
