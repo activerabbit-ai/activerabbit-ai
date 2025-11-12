@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.7] - 2025-11-06
+
+### Fixed
+- **Multiple duplicate events**: Disabled Rails Error Reporter and rack.exception fallback subscriptions
+- These mechanisms were creating 3-4 duplicate events for each error
+- Middleware is now the single source of truth for error capture, providing the best context
+- Each error now creates exactly ONE event instead of 3-4
+
+### Changed
+- Rails Error Reporter subscription: DISABLED (middleware captures all controller errors)
+- rack.exception subscription: DISABLED (middleware captures all rack-level errors)
+- Middleware remains as the primary and only error capture mechanism
+
+## [0.4.6] - 2025-11-05
+
+### Fixed
+- **Duplicate issues bug**: Fixed error reporting creating duplicate issues with "unknown" controller_action
+- Error Reporter now properly extracts controller/action from Rails routing context
+- `rack.exception` fallback now also extracts controller_action correctly
+- All error capture mechanisms now produce consistent controller_action values, preventing duplicate issue grouping
+
+### Details
+Previously, the same error could create multiple issues in the dashboard:
+- Middleware capture: `TestController#action` ✓
+- Rails Error Reporter: `unknown` ✗ (created duplicate)
+- Rack.exception fallback: `unknown` ✗ (created duplicate)
+
+Now all mechanisms extract and use the same controller_action format, ensuring errors are properly grouped into a single issue.
+
 ## [0.4.4] - 2025-10-22
 
 ### Improved

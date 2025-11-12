@@ -59,25 +59,26 @@ module ActiveRabbit
         # Defer complex subscriptions until after initialization
         app.config.after_initialize do
 
-          # Fallback: low-level rack.exception subscription (older Rails and deep middleware errors)
-          ActiveSupport::Notifications.subscribe("rack.exception") do |*args|
-            begin
-              payload = args.last
-              exception = payload[:exception_object]
-              env = payload[:env]
-              next unless exception
-
-              ActiveRabbit::Reporting.report_exception(
-                exception,
-                env: env,
-                handled: false,
-                source: "rack.exception",
-                force: true
-              )
-            rescue => e
-              Rails.logger.error "[ActiveRabbit] Error handling rack.exception: #{e.class}: #{e.message}" if defined?(Rails)
-            end
-          end
+          # DISABLED: rack.exception creates duplicate events because middleware already catches all errors
+          # The middleware is the primary error capture mechanism and catches errors at the optimal level
+          # ActiveSupport::Notifications.subscribe("rack.exception") do |*args|
+          #   begin
+          #     payload = args.last
+          #     exception = payload[:exception_object]
+          #     env = payload[:env]
+          #     next unless exception
+          #
+          #     ActiveRabbit::Reporting.report_exception(
+          #       exception,
+          #       env: env,
+          #       handled: false,
+          #       source: "rack.exception",
+          #       force: true
+          #     )
+          #   rescue => e
+          #     Rails.logger.error "[ActiveRabbit] Error handling rack.exception: #{e.class}: #{e.message}" if defined?(Rails)
+          #   end
+          # end
         end
       end
 
@@ -287,10 +288,11 @@ module ActiveRabbit
       end
 
       initializer "active_rabbit.error_reporter" do |app|
-        # Defer attaching so application config has been applied
-        app.config.after_initialize do
-          ActiveRabbit::Client::ErrorReporter.attach!
-        end
+        # DISABLED: Rails error reporter creates duplicate events because middleware already catches all errors
+        # The middleware provides better context and catches errors at the right level
+        # app.config.after_initialize do
+        #   ActiveRabbit::Client::ErrorReporter.attach!
+        # end
       end
 
       initializer "active_rabbit.sidekiq" do

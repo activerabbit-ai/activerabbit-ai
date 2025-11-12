@@ -56,6 +56,20 @@ module ActiveRabbit
             # Top-level convenience for UI
             ctx[:request_path] = ctx[:request][:path]
             ctx[:request_method] = ctx[:request][:method]
+            
+            # Extract controller_action from routing info to prevent duplicate issues
+            routing = req_info[:routing]
+            if routing && routing[:controller] && routing[:action]
+              controller_name = routing[:controller].to_s
+              action_name = routing[:action].to_s
+              ctx[:controller_action] = "#{controller_name}##{action_name}"
+            end
+          else
+            # Fallback: Try to extract from controller instance in context
+            controller = context && (context[:controller] || context['controller'])
+            if controller && controller.respond_to?(:controller_name) && controller.respond_to?(:action_name)
+              ctx[:controller_action] = "#{controller.controller_name.camelize}Controller##{controller.action_name}"
+            end
           end
 
           if defined?(ActionController::RoutingError) && exception.is_a?(ActionController::RoutingError)

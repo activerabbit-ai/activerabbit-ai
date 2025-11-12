@@ -16,6 +16,14 @@ module ActiveRabbit
       enriched_context[:source] ||= source
       enriched_context[:handled] = handled if !enriched_context.key?(:handled)
 
+      # Extract controller_action from routing info to prevent duplicate issues
+      routing = req_info[:routing]
+      if routing && routing[:controller] && routing[:action] && !enriched_context[:controller_action]
+        controller_name = routing[:controller].to_s
+        action_name = routing[:action].to_s
+        enriched_context[:controller_action] = "#{controller_name}##{action_name}"
+      end
+
       # Enrich for routing errors so UI shows controller action and 404 specifics
       if defined?(ActionController::RoutingError) && exception.is_a?(ActionController::RoutingError)
         enriched_context[:controller_action] ||= 'Routing#not_found'
