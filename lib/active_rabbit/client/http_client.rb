@@ -92,6 +92,27 @@ module ActiveRabbit
         response
       end
 
+      def post(path, payload)
+        uri = URI.join(@base_uri.to_s, path)
+        req = Net::HTTP::Post.new(uri)
+        req['Content-Type'] = 'application/json'
+        req["X-Project-Token"] = configuration.api_key
+        req.body = payload.to_json
+
+        res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https') do |http|
+          http.request(req)
+        end
+
+        unless res.is_a?(Net::HTTPSuccess)
+          raise APIError, "ActiveRabbit API request failed: #{res.code} #{res.body}"
+        end
+
+        JSON.parse(res.body)
+      rescue => e
+        @configuration.logger&.error("[ActiveRabbit] HTTP POST failed: #{e.class}: #{e.message}")
+        nil
+      end
+
       def test_connection
         response = make_request(:post, "/api/v1/test/connection", {
           gem_version: ActiveRabbit::Client::VERSION,
