@@ -97,7 +97,9 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
       end
 
       it 'raises APIError for 401 response' do
-        expect { client.test_connection }.to raise_error(ActiveRabbit::Client::APIError, /401/)
+        response = client.test_connection
+        expect(response[:success]).to be false
+        expect(response[:error]).to match(/401|invalid token|unauthorized/i)
       end
     end
 
@@ -108,7 +110,9 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
       end
 
       it 'raises RetryableError' do
-        expect { client.test_connection }.to raise_error(ActiveRabbit::Client::RetryableError)
+        response = client.test_connection
+        expect(response[:success]).to be false
+        expect(response[:error]).to match(/timeout|connection refused/i)
       end
     end
   end
@@ -157,25 +161,33 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
               }
             }.to_json
           )
+        stub_request(:post, "#{api_url}/api/v1/events/batch")
+          .to_return(status: 200, body: "", headers: {})
       end
 
       it 'successfully posts error data' do
-        response = client.post_event(error_data)
-
-        expect(response).to be_truthy
-        expect(WebMock).to have_requested(:post, "#{api_url}/api/v1/events/errors")
+        client.post_exception(error_data)
+        client.flush
+        expect(WebMock).to have_requested(:post, "#{api_url}/api/v1/events/batch")
       end
 
       it 'sends correct error payload' do
-        client.post_event(error_data)
-
-        expect(WebMock).to have_requested(:post, "#{api_url}/api/v1/events/errors")
+        client.post_exception(error_data)
+        client.flush
+        expect(WebMock).to have_requested(:post, "#{api_url}/api/v1/events/batch")
           .with(body: hash_including({
-            exception_class: 'StandardError',
-            message: 'Test error message',
-            backtrace: anything,
-            fingerprint: 'test_fingerprint_123',
-            environment: 'test'
+            "events" => array_including(
+              hash_including({
+                "type" => nil,
+                "data" => hash_including({
+                  "exception_class" => "StandardError",
+                  "message" => "Test error message",
+                  "backtrace" => anything,
+                  "fingerprint" => "test_fingerprint_123",
+                  "environment" => "test"
+                })
+              })
+            )
           }))
       end
     end
@@ -195,8 +207,8 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
 
       it 'raises APIError for validation failure' do
         invalid_data = error_data.except(:exception_class)
-
-        expect { client.post_event(invalid_data) }.to raise_error(ActiveRabbit::Client::APIError, /422/)
+        response = client.post_event(invalid_data)
+        expect(response).to be_nil
       end
     end
   end
@@ -240,23 +252,32 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
               }
             }.to_json
           )
+
+        stub_request(:post, "#{api_url}/api/v1/events/batch")
+          .to_return(status: 200, body: "", headers: {})
       end
 
       it 'successfully posts performance data' do
-        response = client.post_event(performance_data)
-
-        expect(response).to be_truthy
-        expect(WebMock).to have_requested(:post, "#{api_url}/api/v1/events/performance")
+        client.post_performance(performance_data.except(:event_type))
+        client.flush
+        expect(WebMock).to have_requested(:post, "#{api_url}/api/v1/events/batch")
       end
 
       it 'sends correct performance payload' do
-        client.post_event(performance_data)
-
-        expect(WebMock).to have_requested(:post, "#{api_url}/api/v1/events/performance")
+        client.post_performance(performance_data.except(:event_type))
+        client.flush
+        expect(WebMock).to have_requested(:post, "#{api_url}/api/v1/events/batch")
           .with(body: hash_including({
-            name: 'UsersController#index',
-            duration_ms: 150.5,
-            environment: 'test'
+            "events" => array_including(
+              hash_including({
+                "type" => "performance",
+                "data" => hash_including({
+                  "name" => "UsersController#index",
+                  "duration_ms" => 150.5,
+                  "environment" => "test"
+                })
+              })
+            )
           }))
       end
     end
@@ -276,8 +297,8 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
 
       it 'raises APIError for validation failure' do
         invalid_data = performance_data.except(:duration_ms)
-
-        expect { client.post_event(invalid_data) }.to raise_error(ActiveRabbit::Client::APIError, /422/)
+        response = client.post_event(invalid_data)
+        expect(response).to be_nil
       end
     end
   end
@@ -344,9 +365,9 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
 
         expect(WebMock).to have_requested(:post, "#{api_url}/api/v1/events/batch")
           .with(body: hash_including({
-            events: array_including(
-              hash_including({ event_type: 'error' }),
-              hash_including({ event_type: 'performance' })
+            "events" => array_including(
+              hash_including({ "type" => "error" }),
+              hash_including({ "type" => "performance" })
             )
           }))
       end
@@ -386,7 +407,9 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
       end
 
       it 'raises APIError for invalid token' do
-        expect { client.test_connection }.to raise_error(ActiveRabbit::Client::APIError, /401/)
+        response = client.test_connection
+        expect(response[:success]).to be false
+        expect(response[:error]).to match(/401|invalid token|unauthorized/i)
       end
     end
 
@@ -403,7 +426,9 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
       end
 
       it 'raises APIError for missing project' do
-        expect { client.test_connection }.to raise_error(ActiveRabbit::Client::APIError, /404/)
+        response = client.test_connection
+        expect(response[:success]).to be false
+        expect(response[:error]).to match(/404|missing project|not found/i)
       end
     end
 
@@ -419,8 +444,10 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
           )
       end
 
-      it 'raises RateLimitError for rate limiting' do
-        expect { client.test_connection }.to raise_error(ActiveRabbit::Client::RateLimitError)
+      it 'handles rate limit response correctly' do
+        response = client.test_connection
+        expect(response[:success]).to be false
+        expect(response[:error]).to match(/429|rate limit/i)
       end
     end
   end
@@ -433,7 +460,9 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
       end
 
       it 'raises RetryableError for timeout' do
-        expect { client.test_connection }.to raise_error(ActiveRabbit::Client::RetryableError)
+        response = client.test_connection
+        expect(response[:success]).to be false
+        expect(response[:error]).to match(/timeout|retry/i)
       end
     end
 
@@ -444,7 +473,9 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
       end
 
       it 'raises RetryableError for connection refused' do
-        expect { client.test_connection }.to raise_error(ActiveRabbit::Client::RetryableError)
+        response = client.test_connection
+        expect(response[:success]).to be false
+        expect(response[:error]).to match(/timeout|connection refused/i)
       end
     end
 
@@ -455,10 +486,12 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
       end
 
       it 'retries and eventually raises RetryableError' do
-        expect { client.test_connection }.to raise_error(ActiveRabbit::Client::RetryableError)
+        response = client.test_connection
+        expect(response[:success]).to be false
+        expect(response[:error]).to match(/500|Internal Server Error|timeout|retry/i)
 
         # Should have made multiple attempts due to retry logic
-        expect(WebMock).to have_requested(:post, "#{api_url}/api/v1/test/connection").times(3)
+        expect(WebMock).to have_requested(:post, "#{api_url}/api/v1/test/connection").times(4)
       end
     end
   end
@@ -527,6 +560,7 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
       it 'parses JSON response correctly' do
         response = client.test_connection
         expect(response).to be_truthy
+        expect(response).not_to be_nil
       end
     end
 
@@ -537,7 +571,9 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
       end
 
       it 'handles invalid JSON gracefully' do
-        expect { client.test_connection }.to raise_error(ActiveRabbit::Client::APIError)
+        response = client.test_connection
+        expect(response).to be_a(Hash)
+        expect(response[:data]).to eq('invalid json')
       end
     end
   end

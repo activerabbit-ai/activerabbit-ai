@@ -44,7 +44,7 @@ module ActiveRabbit
         begin
           # Primary endpoint attempt
           configuration.logger&.info("[ActiveRabbit] Making request to primary endpoint: POST #{path}")
-          response = make_request(:post, path, exception_data_with_type)
+          response = enqueue_request(:post, path, exception_data_with_type)
           configuration.logger&.info("[ActiveRabbit] Exception sent successfully (errors endpoint)")
           return response
         rescue => e
@@ -57,7 +57,7 @@ module ActiveRabbit
             fallback_path = "/api/v1/events"
             fallback_body = { type: "error", data: exception_data_with_type }
             configuration.logger&.info("[ActiveRabbit] Making request to fallback endpoint: POST #{fallback_path}")
-            response = make_request(:post, fallback_path, fallback_body)
+            response = enqueue_request(:post, fallback_path, fallback_body)
             configuration.logger&.info("[ActiveRabbit] Exception sent via fallback endpoint")
             return response
           rescue => e2
