@@ -44,7 +44,7 @@ module ActiveRabbit
         begin
           # Primary endpoint attempt
           configuration.logger&.info("[ActiveRabbit] Making request to primary endpoint: POST #{path}")
-          response = make_request(:post, path, exception_data_with_type)
+          response = enqueue_request(:post, path, exception_data_with_type)
           configuration.logger&.info("[ActiveRabbit] Exception sent successfully (errors endpoint)")
           return response
         rescue => e
@@ -57,7 +57,7 @@ module ActiveRabbit
             fallback_path = "/api/v1/events"
             fallback_body = { type: "error", data: exception_data_with_type }
             configuration.logger&.info("[ActiveRabbit] Making request to fallback endpoint: POST #{fallback_path}")
-            response = make_request(:post, fallback_path, fallback_body)
+            response = enqueue_request(:post, fallback_path, fallback_body)
             configuration.logger&.info("[ActiveRabbit] Exception sent via fallback endpoint")
             return response
           rescue => e2
@@ -90,6 +90,27 @@ module ActiveRabbit
         configuration.logger&.info("[ActiveRabbit] Batch sent successfully")
         configuration.logger&.debug("[ActiveRabbit] Batch response: #{response.inspect}")
         response
+      end
+
+      def post(path, payload)
+        uri = URI.join(@base_uri.to_s, path)
+        req = Net::HTTP::Post.new(uri)
+        req['Content-Type'] = 'application/json'
+        req["X-Project-Token"] = configuration.api_key
+        req.body = payload.to_json
+
+        res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https') do |http|
+          http.request(req)
+        end
+
+        unless res.is_a?(Net::HTTPSuccess)
+          raise APIError, "ActiveRabbit API request failed: #{res.code} #{res.body}"
+        end
+
+        JSON.parse(res.body)
+      rescue => e
+        @configuration.logger&.error("[ActiveRabbit] HTTP POST failed: #{e.class}: #{e.message}")
+        nil
       end
 
       def test_connection

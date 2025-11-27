@@ -16,9 +16,11 @@ RSpec.describe ActiveRabbit::Client::HttpClient do
   end
 
   let(:http_client) { described_class.new(configuration) }
+  let(:logger) { double("Logger", info: nil, error: nil, debug: nil, warn: nil) }
 
   before do
     WebMock.disable_net_connect!
+    allow(configuration).to receive(:logger).and_return(logger)
   end
 
   after do
@@ -49,10 +51,10 @@ RSpec.describe ActiveRabbit::Client::HttpClient do
 
   describe "#post_exception" do
     it "enqueues a POST request to exceptions endpoint with event_type" do
-      exception_data = { type: "StandardError", message: "Test error" }
-      expected_data = exception_data.merge(event_type: 'error')
+      exception_data = { "type": "StandardError", "message": "Test error" }
+      expected_data = exception_data.merge(event_type: 'error').transform_keys(&:to_s)
 
-      expect(http_client).to receive(:enqueue_request).with(:post, "api/v1/events/errors", expected_data)
+      expect(http_client).to receive(:enqueue_request).with(:post, "/api/v1/events/errors", expected_data)
 
       http_client.post_exception(exception_data)
     end
@@ -251,7 +253,8 @@ RSpec.describe ActiveRabbit::Client::HttpClient do
 
         allow(http_client).to receive(:post_batch).and_raise(StandardError.new("Network error"))
 
-        expect(configuration.logger).to receive(:error).with("[ActiveRabbit] Failed to send batch: Network error")
+        expect(logger).to receive(:error).with("[ActiveRabbit] Failed to send batch: Network error")
+        expect(logger).to receive(:error).with(/Backtrace:/)
 
         expect {
           http_client.flush

@@ -127,6 +127,21 @@ module ActiveRabbit
         track_exception(exception, context: context, user_id: user_id, tags: tags)
       end
 
+      def notify_deploy(project_slug:, status:, user:, version:, started_at: nil, finished_at: nil)
+        payload = {
+          revision: Client.configuration.revision,
+          environment: Client.configuration.environment,
+          project_slug: project_slug,
+          version: version,
+          status: status,
+          user: user,
+          started_at: started_at,
+          finished_at: finished_at
+        }
+
+        http_client.post("/api/v1/deploys", payload)
+      end
+
       private
 
       def event_processor
