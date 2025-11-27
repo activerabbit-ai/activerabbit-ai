@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.8] - 2025-11-27
+
+### Added
+- **Deploy notification API**: Added `ActiveRabbit::Client.notify_deploy` for reporting deploys to ActiveRabbit
+  - Sends deploy metadata (revision, environment, project slug, version, status, user, timestamps) to `/api/v1/deploys`
+
+### Fixed
+- **Test suite stability**: RSpec tests and CI config updated to keep 0.4.x series green
+
 ## [0.4.7] - 2025-11-06
 
 ### Fixed
