@@ -18,7 +18,7 @@ module ActiveRabbit
       attr_accessor :revision
 
       def initialize
-        @api_url = ENV.fetch("active_rabbit_API_URL", "https://api.activerabbit.ai")
+        @api_url = "https://api.activerabbit.ai"
         @api_key = ENV["active_rabbit_API_KEY"]
         @project_id = ENV["active_rabbit_PROJECT_ID"]
         @environment = ENV.fetch("active_rabbit_ENVIRONMENT", detect_environment)
