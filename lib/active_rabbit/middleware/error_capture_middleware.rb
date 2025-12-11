@@ -13,7 +13,7 @@ module ActiveRabbit
         begin
           ActiveRabbit::Reporting.report_exception(e, env: env, handled: false, source: "middleware", force: true)
         rescue => inner
-          Rails.logger&.error("[ActiveRabbit] ErrorCaptureMiddleware failed: #{inner.class}: #{inner.message}") if defined?(Rails)
+          ActiveRabbit::Client.log(:error, "[ActiveRabbit] ErrorCaptureMiddleware failed: #{inner.class}: #{inner.message}")
         end
         raise
       end

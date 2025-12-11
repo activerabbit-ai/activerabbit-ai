@@ -32,25 +32,25 @@ module ActiveRabbit
         end
 
         # Send exception to API and return response
-        configuration.logger&.info("[ActiveRabbit] Preparing to send exception: #{exception.class.name}")
-        configuration.logger&.debug("[ActiveRabbit] Exception data: #{exception_data.inspect}")
+        log(:info, "[ActiveRabbit] Preparing to send exception: #{exception.class.name}")
+        log(:debug, "[ActiveRabbit] Exception data: #{exception_data.inspect}")
 
         # Ensure we have required fields
         unless exception_data[:exception_class] && exception_data[:message] && exception_data[:backtrace]
-          configuration.logger&.error("[ActiveRabbit] Missing required fields in exception data")
-          configuration.logger&.debug("[ActiveRabbit] Available fields: #{exception_data.keys.inspect}")
+          log(:error, "[ActiveRabbit] Missing required fields in exception data")
+          log(:debug, "[ActiveRabbit] Available fields: #{exception_data.keys.inspect}")
           return nil
         end
 
         response = http_client.post_exception(exception_data)
 
         if response.nil?
-          configuration.logger&.error("[ActiveRabbit] Failed to send exception - both primary and fallback endpoints failed")
+          log(:error, "[ActiveRabbit] Failed to send exception - both primary and fallback endpoints failed")
           return nil
         end
 
-        configuration.logger&.info("[ActiveRabbit] Exception successfully sent to API")
-        configuration.logger&.debug("[ActiveRabbit] API Response: #{response.inspect}")
+        log(:info, "[ActiveRabbit] Exception successfully sent to API")
+        log(:debug, "[ActiveRabbit] API Response: #{response.inspect}")
         response
       end
 
@@ -59,6 +59,22 @@ module ActiveRabbit
       end
 
       private
+
+      def log(level, message)
+        cfg = configuration
+        return if cfg&.disable_console_logs
+
+        logger = cfg&.logger
+        return unless logger
+
+        case level
+        when :info  then logger.info(message)
+        when :debug then logger.debug(message)
+        when :error then logger.error(message)
+        end
+
+      rescue
+      end
 
       def build_exception_data(exception:, context:, user_id:, tags:, handled: nil)
         parsed_bt = parse_backtrace(exception.backtrace || [])
@@ -132,10 +148,10 @@ module ActiveRabbit
         end
 
         # Log what we're sending
-        configuration.logger&.debug("[ActiveRabbit] Built exception data:")
-        configuration.logger&.debug("[ActiveRabbit] - Required fields: class=#{data[:exception_class]}, message=#{data[:message]}, backtrace=#{data[:backtrace]&.first}")
-        configuration.logger&.debug("[ActiveRabbit] - Error details: type=#{data[:error_type]}, source=#{data[:error_source]}, component=#{data[:error_component]}")
-        configuration.logger&.debug("[ActiveRabbit] - Request info: path=#{data[:request_path]}, method=#{data[:request_method]}, action=#{data[:controller_action]}")
+        log(:debug, "[ActiveRabbit] Built exception data:")
+        log(:debug, "[ActiveRabbit] - Required fields: class=#{data[:exception_class]}, message=#{data[:message]}, backtrace=#{data[:backtrace]&.first}")
+        log(:debug, "[ActiveRabbit] - Error details: type=#{data[:error_type]}, source=#{data[:error_source]}, component=#{data[:error_component]}")
+        log(:debug, "[ActiveRabbit] - Request info: path=#{data[:request_path]}, method=#{data[:request_method]}, action=#{data[:controller_action]}")
 
         data
       end

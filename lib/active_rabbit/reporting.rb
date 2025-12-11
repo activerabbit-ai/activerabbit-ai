@@ -40,7 +40,7 @@ module ActiveRabbit
         force: force)
     rescue => e
       if defined?(Rails)
-        Rails.logger&.error("[ActiveRabbit] report_exception failed: #{e.class}: #{e.message}")
+        ActiveRabbit::Client.log(:error, "[ActiveRabbit] report_exception failed: #{e.class}: #{e.message}")
       end
       nil
     end
