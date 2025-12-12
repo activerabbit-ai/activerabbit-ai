@@ -20,6 +20,7 @@ RSpec.describe ActiveRabbit::Client::HttpClient do
 
   before do
     WebMock.disable_net_connect!
+    configuration.disable_console_logs = false
     allow(configuration).to receive(:logger).and_return(logger)
   end
 
