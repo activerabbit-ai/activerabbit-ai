@@ -16,6 +16,7 @@ module ActiveRabbit
       attr_accessor :before_send_event, :before_send_exception
       attr_accessor :dedupe_window  # Time window in seconds for error deduplication (0 = disabled)
       attr_accessor :revision
+      attr_accessor :disable_console_logs
 
       def initialize
         @api_url = ENV.fetch("active_rabbit_API_URL", "https://api.activerabbit.ai")
@@ -38,6 +39,7 @@ module ActiveRabbit
         @enable_performance_monitoring = true
         @enable_n_plus_one_detection = true
         @enable_pii_scrubbing = true
+        @disable_console_logs = true
 
         # PII scrubbing
         @pii_fields = %w[

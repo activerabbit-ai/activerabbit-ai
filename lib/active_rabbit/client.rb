@@ -77,8 +77,8 @@ module ActiveRabbit
         result = exception_tracker.track_exception(**args)
 
         # Log the result
-        configuration.logger&.info("[ActiveRabbit] Exception tracked: #{exception.class.name}")
-        configuration.logger&.debug("[ActiveRabbit] Exception tracking result: #{result.inspect}")
+        ActiveRabbit::Client.log(:info, "[ActiveRabbit] Exception tracked: #{exception.class.name}")
+        ActiveRabbit::Client.log(:debug, "[ActiveRabbit] Exception tracking result: #{result.inspect}")
 
         result
       end
@@ -140,6 +140,17 @@ module ActiveRabbit
         }
 
         http_client.post("/api/v1/deploys", payload)
+      end
+
+      def log(level, message)
+        cfg = configuration
+        return if cfg.nil? || cfg.disable_console_logs
+
+        case level
+        when :info  then cfg.logger&.info(message)
+        when :debug then cfg.logger&.debug(message)
+        when :error then cfg.logger&.error(message)
+        end
       end
 
       private
