@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2025-12-12
+
+### Changed
+- **Minor release**: Bumped version to 0.5.0 to reflect latest stable changes and internal improvements
+
 ## [0.4.9] - 2025-11-30
 
 ### Fixed
