@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.9] - 2025-11-30
+
+### Fixed
+- **Rails Integration**: Fixed `LocalJumpError: unexpected return` when `ActiveRabbit` is installed but not configured
+  - This error occurred when `subscribed` callbacks tried to return early if configuration was missing
+  - Changed `return` to `next` in Railtie subscription blocks
+
 ## [0.4.8] - 2025-11-27
 
 ### Added

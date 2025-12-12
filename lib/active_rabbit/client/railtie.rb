@@ -433,7 +433,7 @@ module ActiveRabbit
           begin
             unless ActiveRabbit::Client.configured?
               Rails.logger.debug "[ActiveRabbit] Skipping performance tracking - not configured"
-              return
+              next
             end
 
             duration_ms = ((finished - started) * 1000).round(2)
