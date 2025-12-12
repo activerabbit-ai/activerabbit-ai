@@ -16,7 +16,7 @@ RSpec.describe "Rails Error Taxonomy Integration", type: :request do
       config.api_key = "test-api-key"
       config.project_id = "test-project"
       config.api_url = "https://api.activerabbit.com"
-      config.ignore_404 = false
+      config.enable_404 = false
     end
 
     stub_request(:post, %r{https://api\.activerabbit\.com/api/v1/(exceptions|events|batch|performance)})
