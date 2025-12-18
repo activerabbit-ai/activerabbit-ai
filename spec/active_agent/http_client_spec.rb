@@ -72,6 +72,28 @@ RSpec.describe ActiveRabbit::Client::HttpClient do
     end
   end
 
+  describe "#post_release" do
+    it "posts to /api/v1/releases and returns parsed response on success" do
+      stub_request(:post, "https://api.example.com/api/v1/releases")
+        .with(
+          body: hash_including(version: "abc123", environment: "production")
+        )
+        .to_return(status: 201, body: '{"id":1,"version":"abc123"}', headers: { 'Content-Type' => 'application/json' })
+
+      result = http_client.post_release(version: "abc123", environment: "production", metadata: { foo: "bar" })
+      expect(result).to eq({ "id" => 1, "version" => "abc123" })
+    end
+
+    it "treats 409 conflict as success (already exists)" do
+      stub_request(:post, "https://api.example.com/api/v1/releases")
+        .to_return(status: 409, body: '{"error":"conflict","message":"Release already exists"}', headers: { 'Content-Type' => 'application/json' })
+
+      result = http_client.post_release(version: "abc123", environment: "production", metadata: {})
+      expect(result).to be_a(Hash)
+      expect(result["error"]).to eq("conflict")
+    end
+  end
+
   describe "#test_connection" do
     context "when connection succeeds" do
       it "returns success response" do

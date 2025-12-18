@@ -16,6 +16,10 @@ module ActiveRabbit
       attr_accessor :before_send_event, :before_send_exception
       attr_accessor :dedupe_window  # Time window in seconds for error deduplication (0 = disabled)
       attr_accessor :revision
+      # When enabled, the gem will ping ActiveRabbit with the current revision/release after boot.
+      # This is safe to enable in production even with multiple dynos/servers; the API treats
+      # duplicate releases as a conflict.
+      attr_accessor :auto_release_tracking
       attr_accessor :disable_console_logs
 
       def initialize
@@ -71,6 +75,7 @@ module ActiveRabbit
         @release = detect_release
         @server_name = detect_server_name
         @logger = detect_logger
+        @auto_release_tracking = default_auto_release_tracking
 
         # Callbacks
         @before_send_event = nil
@@ -136,6 +141,20 @@ module ActiveRabbit
         return Sinatra::Base.environment.to_s if defined?(Sinatra)
 
         ENV["RACK_ENV"] || ENV["RAILS_ENV"] || "development"
+      end
+
+      def default_auto_release_tracking
+        # Allow explicit override via env var
+        env_value = ENV["ACTIVERABBIT_AUTO_RELEASE_TRACKING"] || ENV["active_rabbit_AUTO_RELEASE_TRACKING"]
+        if env_value
+          normalized = env_value.to_s.strip.downcase
+          return true if %w[1 true yes y on].include?(normalized)
+          return false if %w[0 false no n off].include?(normalized)
+        end
+
+        # Default: enabled outside dev/test
+        env_name = @environment.to_s
+        !%w[development test].include?(env_name)
       end
 
       def detect_release
