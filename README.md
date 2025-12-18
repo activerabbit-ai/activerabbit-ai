@@ -43,6 +43,27 @@ ActiveRabbit::Client.configure do |config|
 end
 ```
 
+### Release (deploy) tracking
+
+If you set a revision (similar to AppSignal), the gem can automatically **ping ActiveRabbit** after Rails boots to record the deployed version via `POST /api/v1/releases`.
+
+```ruby
+# config/initializers/activerabbit.rb
+ActiveRabbit::Client.configure do |config|
+  # ... your existing config ...
+
+  # AppSignal-style revision
+  config.revision = `git rev-parse --short HEAD`.strip
+
+  # Optional: enable/disable auto release ping (defaults to enabled outside development/test)
+  # config.auto_release_tracking = true
+end
+```
+
+Notes:
+- With multiple dynos/servers, more than one process may ping on deploy; the API treats duplicates as “already exists”.
+- You can also override via env: `ACTIVERABBIT_AUTO_RELEASE_TRACKING=0` (or `1`).
+
 ### Environment Variables
 
 You can also configure the client using environment variables:

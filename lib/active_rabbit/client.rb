@@ -142,6 +142,29 @@ module ActiveRabbit
         http_client.post("/api/v1/deploys", payload)
       end
 
+      # Ping ActiveRabbit that a new version (release/revision) is deployed.
+      #
+      # This is intended to be called from a deploy hook or automatically after Rails boots
+      # when `config.auto_release_tracking` is enabled.
+      #
+      # The API treats duplicates as conflict (409); the client treats that as success.
+      def notify_release(version: nil, environment: nil, metadata: {})
+        return unless configured?
+
+        cfg = configuration
+        version ||= cfg.revision || cfg.release
+        environment ||= cfg.environment
+        return if version.nil? || version.to_s.strip.empty?
+
+        payload = {
+          version: version,
+          environment: environment,
+          metadata: metadata || {}
+        }
+
+        http_client.post_release(payload)
+      end
+
       def log(level, message)
         cfg = configuration
         return if cfg.nil? || cfg.disable_console_logs
