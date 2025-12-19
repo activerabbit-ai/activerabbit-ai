@@ -118,47 +118,6 @@ module ActiveRabbit
         nil
       end
 
-      def post_deploy(deploy_data)
-        payload = stringify_and_sanitize(deploy_data)
-        uri = build_uri("/api/v1/deploys")
-
-        log(:info, "[ActiveRabbit] Sending deploy to API...")
-        log(:debug, "[ActiveRabbit] Deploy payload: #{safe_preview(payload)}")
-
-        response = perform_request(uri, :post, payload)
-        code = response.code.to_i
-
-        if (200..299).include?(code)
-          parse_json_or_empty(response.body)
-        else
-          handle_response(response)
-        end
-      rescue => e
-        log(:error, "[ActiveRabbit] Deploy send failed: #{e.class}: #{e.message}")
-        nil
-      end
-
-      def post(path, payload)
-        uri = URI.join(@base_uri.to_s, path)
-        req = Net::HTTP::Post.new(uri)
-        req['Content-Type'] = 'application/json'
-        req["X-Project-Token"] = configuration.api_key
-        req.body = payload.to_json
-
-        res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https') do |http|
-          http.request(req)
-        end
-
-        unless res.is_a?(Net::HTTPSuccess)
-          raise APIError, "ActiveRabbit API request failed: #{res.code} #{res.body}"
-        end
-
-        JSON.parse(res.body)
-      rescue => e
-        log(:error, "[ActiveRabbit] HTTP POST failed: #{e.class}: #{e.message}")
-        nil
-      end
-
       def test_connection
         response = make_request(:post, "/api/v1/test/connection", {
           gem_version: ActiveRabbit::Client::VERSION,
