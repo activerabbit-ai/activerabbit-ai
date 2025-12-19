@@ -196,6 +196,20 @@ module ActiveRabbit
 
       private
 
+      def build_uri(path)
+        current_base = URI(configuration.api_url)
+        normalized_path = path.start_with?("/") ? path : "/#{path}"
+        URI.join(current_base, normalized_path)
+      end
+
+      def parse_json_or_empty(body)
+        return {} if body.nil? || body.empty?
+
+        JSON.parse(body)
+      rescue JSON::ParserError
+        body
+      end
+
       def enqueue_request(method, path, data)
         return if @shutdown
 

@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "logger"
+require "concurrent"
 
 begin
   require "rails/railtie"
@@ -37,6 +38,36 @@ module ActiveRabbit
           config.environment ||= Rails.env
           config.logger ||= Rails.logger rescue Logger.new(STDOUT)
           config.release ||= detect_release(app)
+        end
+
+        app.config.after_initialize do
+          begin
+            cfg = ActiveRabbit::Client.configuration
+            next unless cfg
+            next unless ActiveRabbit::Client.configured?
+            next unless cfg.auto_release_tracking
+
+            version = cfg.revision || cfg.release
+            next if version.nil? || version.to_s.strip.empty?
+
+            metadata = {
+              revision: cfg.revision,
+              release: cfg.release,
+              server_name: cfg.server_name,
+              environment: cfg.environment,
+              gem_version: ActiveRabbit::Client::VERSION
+            }.compact
+
+            Concurrent::Future.execute do
+              ActiveRabbit::Client.notify_release(
+                version: version,
+                environment: cfg.environment,
+                metadata: metadata
+              )
+            end
+          rescue => e
+            Rails.logger.debug "[ActiveRabbit] auto release tracking failed: #{e.class}: #{e.message}" if defined?(Rails) && Rails.logger
+          end
         end
 
         # if ActiveRabbit::Client.configuration && !ActiveRabbit::Client.configuration.disable_console_logs
