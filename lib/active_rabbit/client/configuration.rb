@@ -68,9 +68,10 @@ module ActiveRabbit
         @dedupe_window = 300  # 5 minutes by default
 
         # Metadata
-        @release = detect_release
         @server_name = detect_server_name
         @logger = detect_logger
+        @auto_release_tracking = default_auto_release_tracking
+        @revision = detect_release
 
         # Callbacks
         @before_send_event = nil

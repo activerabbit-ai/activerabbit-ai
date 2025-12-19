@@ -92,6 +92,52 @@ module ActiveRabbit
         response
       end
 
+      # Create (or confirm) a release in the ActiveRabbit API.
+      # Treats 409 conflict (already exists) as success to support multiple servers/dynos.
+      def post_release(release_data)
+        payload = stringify_and_sanitize(release_data)
+        uri = build_uri("/api/v1/releases")
+
+        log(:info, "[ActiveRabbit] Pinging release to API...")
+        log(:debug, "[ActiveRabbit] Release payload: #{safe_preview(payload)}")
+
+        response = perform_request(uri, :post, payload)
+        code = response.code.to_i
+
+        if (200..299).include?(code)
+          parse_json_or_empty(response.body)
+        elsif code == 409
+          # Already exists; return parsed body (usually includes id/version)
+          parse_json_or_empty(response.body)
+        else
+          # Use shared error handling (raises)
+          handle_response(response)
+        end
+      rescue => e
+        log(:error, "[ActiveRabbit] Release ping failed: #{e.class}: #{e.message}")
+        nil
+      end
+
+      def post_deploy(deploy_data)
+        payload = stringify_and_sanitize(deploy_data)
+        uri = build_uri("/api/v1/deploys")
+
+        log(:info, "[ActiveRabbit] Sending deploy to API...")
+        log(:debug, "[ActiveRabbit] Deploy payload: #{safe_preview(payload)}")
+
+        response = perform_request(uri, :post, payload)
+        code = response.code.to_i
+
+        if (200..299).include?(code)
+          parse_json_or_empty(response.body)
+        else
+          handle_response(response)
+        end
+      rescue => e
+        log(:error, "[ActiveRabbit] Deploy send failed: #{e.class}: #{e.message}")
+        nil
+      end
+
       def post(path, payload)
         uri = URI.join(@base_uri.to_s, path)
         req = Net::HTTP::Post.new(uri)

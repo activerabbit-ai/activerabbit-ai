@@ -127,19 +127,21 @@ module ActiveRabbit
         track_exception(exception, context: context, user_id: user_id, tags: tags)
       end
 
-      def notify_deploy(project_slug:, status:, user:, version:, started_at: nil, finished_at: nil)
+      def notify_deploy(project_slug:, version:, status:, user:, started_at: nil, finished_at: nil)
+        return unless configured?
+
         payload = {
-          revision: Client.configuration.revision,
-          environment: Client.configuration.environment,
           project_slug: project_slug,
           version: version,
+          environment: configuration.environment,
+          revision: configuration.revision,
           status: status,
           user: user,
           started_at: started_at,
           finished_at: finished_at
         }
 
-        http_client.post("/api/v1/deploys", payload)
+        http_client.post_deploy(payload)
       end
 
       def log(level, message)
