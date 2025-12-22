@@ -5,12 +5,12 @@
 # config/initializers/active_rabbit.rb
 ActiveRabbit::Client.configure do |config|
   # Required configuration
-  config.api_key = ENV['active_rabbit_API_KEY']
-  config.project_id = ENV['active_rabbit_PROJECT_ID']
+  config.api_key = ENV['ACTIVERABBIT_API_KEY']
+  config.project_id = ENV['ACTIVERABBIT_PROJECT_ID']
   config.environment = Rails.env
 
   # Optional configuration
-  config.api_url = ENV.fetch('active_rabbit_API_URL', 'https://api.activerabbit.com')
+  config.api_url = ENV.fetch('ACTIVERABBIT_API_URL', 'https://api.activerabbit.com')
   config.release = ENV['HEROKU_SLUG_COMMIT'] || `git rev-parse HEAD`.chomp
 
   # Performance settings

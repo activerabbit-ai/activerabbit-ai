@@ -14,9 +14,9 @@ puts "🚀 ActiveRabbit Production Readiness Test"
 puts "=" * 50
 
 # Test configuration
-TEST_API_KEY = ENV['active_rabbit_API_KEY'] || 'test-key-for-validation'
-TEST_PROJECT_ID = ENV['active_rabbit_PROJECT_ID'] || 'test-project'
-TEST_API_URL = ENV['active_rabbit_API_URL'] || 'https://api.activerabbit.com'
+TEST_API_KEY = ENV['ACTIVERABBIT_API_KEY'] || 'test-key-for-validation'
+TEST_PROJECT_ID = ENV['ACTIVERABBIT_PROJECT_ID'] || 'test-project'
+TEST_API_URL = ENV['ACTIVERABBIT_API_URL'] || 'https://api.activerabbit.com'
 
 # Load the gem
 begin
@@ -374,7 +374,7 @@ puts "=" * 50
 
 if TEST_API_KEY == 'test-key-for-validation'
   puts "⚠️  Note: Tests run with mock configuration"
-  puts "   Set active_rabbit_API_KEY and active_rabbit_PROJECT_ID"
+  puts "   Set ACTIVERABBIT_API_KEY and ACTIVERABBIT_PROJECT_ID"
   puts "   environment variables for full integration testing"
 else
   puts "✅ Full integration test completed with real API"

@@ -20,12 +20,11 @@ RSpec.describe ActiveRabbit::Client::Configuration do
 
     it "loads values from environment variables" do
       allow(ENV).to receive(:[]).and_call_original
-      allow(ENV).to receive(:[]).with("active_rabbit_API_KEY").and_return("env-api-key")
-      allow(ENV).to receive(:[]).with("active_rabbit_PROJECT_ID").and_return("env-project-id")
-      allow(ENV).to receive(:[]).with("active_rabbit_ENVIRONMENT").and_return("env-environment")
+      allow(ENV).to receive(:[]).with("ACTIVERABBIT_API_KEY").and_return("env-api-key")
+      allow(ENV).to receive(:[]).with("ACTIVERABBIT_PROJECT_ID").and_return("env-project-id")
+      allow(ENV).to receive(:[]).with("ACTIVERABBIT_ENVIRONMENT").and_return("env-environment")
       allow(ENV).to receive(:fetch).and_call_original
-      allow(ENV).to receive(:fetch).with("active_rabbit_API_URL", "https://api.activerabbit.ai").and_return("https://custom-api.com")
-      allow(ENV).to receive(:fetch).with("active_rabbit_ENVIRONMENT", anything).and_return("env-environment")
+      allow(ENV).to receive(:fetch).with("ACTIVERABBIT_API_URL", "https://api.activerabbit.ai").and_return("https://custom-api.com")
 
       config = described_class.new
 

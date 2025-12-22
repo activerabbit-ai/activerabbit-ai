@@ -69,7 +69,7 @@ end
 RSpec.describe ActiveRabbit::Client::Configuration do
   describe "environment variable loading" do
     it "loads API key from environment" do
-      allow(ENV).to receive(:[]).with("active_rabbit_API_KEY").and_return("test-key")
+      allow(ENV).to receive(:[]).with("ACTIVERABBIT_API_KEY").and_return("test-key")
       config = described_class.new
       expect(config.api_key).to eq("test-key")
     end
@@ -486,8 +486,8 @@ puts "🧪 Testing ActiveRabbit Integration..."
 # Test 1: Configuration
 puts "\n1. Testing Configuration..."
 ActiveRabbit::Client.configure do |config|
-  config.api_key = ENV['active_rabbit_API_KEY'] || 'test-key'
-  config.project_id = ENV['active_rabbit_PROJECT_ID'] || 'test-project'
+  config.api_key = ENV['ACTIVERABBIT_API_KEY'] || 'test-key'
+  config.project_id = ENV['ACTIVERABBIT_PROJECT_ID'] || 'test-project'
   config.environment = 'test'
 end
 
@@ -578,8 +578,8 @@ jobs:
         bundle exec rspec
         ruby script/test_activerabbit.rb
       env:
-        active_rabbit_API_KEY: ${{ secrets.active_rabbit_API_KEY }}
-        active_rabbit_PROJECT_ID: ${{ secrets.active_rabbit_PROJECT_ID }}
+        ACTIVERABBIT_API_KEY: ${{ secrets.ACTIVERABBIT_API_KEY }}
+        ACTIVERABBIT_PROJECT_ID: ${{ secrets.ACTIVERABBIT_PROJECT_ID }}
 ```
 
 This comprehensive testing approach ensures your Rails application and ActiveRabbit gem integration is thoroughly tested before production deployment, covering functionality, performance, and resilience scenarios.

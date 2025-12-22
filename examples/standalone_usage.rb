@@ -140,8 +140,8 @@ class BackgroundWorker
   def initialize
     # Configure ActiveRabbit for background processes
     ActiveRabbit::Client.configure do |config|
-      config.api_key = ENV['active_rabbit_API_KEY']
-      config.project_id = ENV['active_rabbit_PROJECT_ID']
+      config.api_key = ENV['ACTIVERABBIT_API_KEY']
+      config.project_id = ENV['ACTIVERABBIT_PROJECT_ID']
       config.environment = ENV.fetch('ENVIRONMENT', 'development')
       config.server_name = "worker-#{Socket.gethostname}"
     end
@@ -249,8 +249,8 @@ namespace :data do
   desc "Migrate user data"
   task migrate_users: :environment do
     ActiveRabbit::Client.configure do |config|
-      config.api_key = ENV['active_rabbit_API_KEY']
-      config.project_id = ENV['active_rabbit_PROJECT_ID']
+      config.api_key = ENV['ACTIVERABBIT_API_KEY']
+      config.project_id = ENV['ACTIVERABBIT_PROJECT_ID']
       config.environment = 'migration'
     end
 

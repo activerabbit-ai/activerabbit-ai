@@ -20,10 +20,10 @@ module ActiveRabbit
       attr_accessor :disable_console_logs
 
       def initialize
-        @api_url = ENV.fetch("active_rabbit_API_URL", "https://api.activerabbit.ai")
-        @api_key = ENV["active_rabbit_API_KEY"]
-        @project_id = ENV["active_rabbit_PROJECT_ID"]
-        @environment = ENV.fetch("active_rabbit_ENVIRONMENT", detect_environment)
+        @api_url = ENV.fetch("ACTIVERABBIT_API_URL", "https://api.activerabbit.ai")
+        @api_key = ENV["ACTIVERABBIT_API_KEY"]
+        @project_id = ENV["ACTIVERABBIT_PROJECT_ID"]
+        @environment = ENV["ACTIVERABBIT_ENVIRONMENT"] || detect_environment
 
         # HTTP settings
         @timeout = 30
@@ -142,7 +142,7 @@ module ActiveRabbit
 
       def default_auto_release_tracking
         # Allow explicit override via env var
-        env_value = ENV["ACTIVERABBIT_AUTO_RELEASE_TRACKING"] || ENV["active_rabbit_AUTO_RELEASE_TRACKING"]
+        env_value = ENV["ACTIVERABBIT_AUTO_RELEASE_TRACKING"]
         if env_value
           normalized = env_value.to_s.strip.downcase
           return true if %w[1 true yes y on].include?(normalized)
