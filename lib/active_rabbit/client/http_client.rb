@@ -92,24 +92,29 @@ module ActiveRabbit
         response
       end
 
-      def post(path, payload)
-        uri = URI.join(@base_uri.to_s, path)
-        req = Net::HTTP::Post.new(uri)
-        req['Content-Type'] = 'application/json'
-        req["X-Project-Token"] = configuration.api_key
-        req.body = payload.to_json
+      # Create (or confirm) a release in the ActiveRabbit API.
+      # Treats 409 conflict (already exists) as success to support multiple servers/dynos.
+      def post_release(release_data)
+        payload = stringify_and_sanitize(release_data)
+        uri = build_uri("/api/v1/releases")
 
-        res = Net::HTTP.start(uri.hostname, uri.port, use_ssl: uri.scheme == 'https') do |http|
-          http.request(req)
+        log(:info, "[ActiveRabbit] Pinging release to API...")
+        log(:debug, "[ActiveRabbit] Release payload: #{safe_preview(payload)}")
+
+        response = perform_request(uri, :post, payload)
+        code = response.code.to_i
+
+        if (200..299).include?(code)
+          parse_json_or_empty(response.body)
+        elsif code == 409
+          # Already exists; return parsed body (usually includes id/version)
+          parse_json_or_empty(response.body)
+        else
+          # Use shared error handling (raises)
+          handle_response(response)
         end
-
-        unless res.is_a?(Net::HTTPSuccess)
-          raise APIError, "ActiveRabbit API request failed: #{res.code} #{res.body}"
-        end
-
-        JSON.parse(res.body)
       rescue => e
-        log(:error, "[ActiveRabbit] HTTP POST failed: #{e.class}: #{e.message}")
+        log(:error, "[ActiveRabbit] Release ping failed: #{e.class}: #{e.message}")
         nil
       end
 
@@ -149,6 +154,20 @@ module ActiveRabbit
       end
 
       private
+
+      def build_uri(path)
+        current_base = URI(configuration.api_url)
+        normalized_path = path.start_with?("/") ? path : "/#{path}"
+        URI.join(current_base, normalized_path)
+      end
+
+      def parse_json_or_empty(body)
+        return {} if body.nil? || body.empty?
+
+        JSON.parse(body)
+      rescue JSON::ParserError
+        body
+      end
 
       def enqueue_request(method, path, data)
         return if @shutdown
