@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    activerabbit-ai (0.5.1)
+    activerabbit-ai (0.5.2)
       concurrent-ruby (~> 1.1)
 
 GEM

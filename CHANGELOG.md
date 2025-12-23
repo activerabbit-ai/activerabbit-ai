@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2025-12-22
+
+### Fixed
+- **Batch sending resilience**: `HttpClient#post_batch` is now nil-safe and supports both queued items and raw payloads (prevents `undefined method [] for nil` during flush).
+- **Dedupe resilience**: Deduplication key building is now safe when `context` is nil/non-hash.
+
+### Changed
+- **Default API URL**: Default `api_url` aligned to `https://app.activerabbit.ai` (dashboard + API host).
+
 ## [0.5.0] - 2025-12-12
 
 ### Changed
