@@ -38,7 +38,7 @@ Or install it yourself as:
 ActiveRabbit::Client.configure do |config|
   config.api_key = ENV['ACTIVERABBIT_API_KEY']
   config.project_id = ENV['ACTIVERABBIT_PROJECT_ID']
-  config.api_url = ENV.fetch('ACTIVERABBIT_API_URL', 'https://api.activerabbit.ai')
+  config.api_url = ENV.fetch('ACTIVERABBIT_API_URL', 'https://app.activerabbit.ai')
   config.environment = Rails.env
 end
 ```

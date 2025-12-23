@@ -178,7 +178,7 @@ RSpec.describe 'ActiveRabbit API Integration', type: :integration do
           .with(body: hash_including({
             "events" => array_including(
               hash_including({
-                "type" => nil,
+                "type" => "error",
                 "data" => hash_including({
                   "exception_class" => "StandardError",
                   "message" => "Test error message",

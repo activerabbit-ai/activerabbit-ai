@@ -77,11 +77,23 @@ module ActiveRabbit
 
       def post_batch(batch_data)
         # Transform batch data into the format the API expects
-        events = batch_data.map do |event|
-          {
-            type: event[:data][:event_type] || event[:event_type] || event[:type],
-            data: event[:data]
-          }
+        events = Array(batch_data).filter_map do |event|
+          next if event.nil?
+
+          # Support both:
+          # - queued items: { method:, path:, data:, timestamp: }
+          # - raw payloads: { ...event fields... }
+          data =
+            (event.is_a?(Hash) ? (event[:data] || event["data"]) : nil) ||
+            (event.is_a?(Hash) ? event : nil)
+
+          next unless data.is_a?(Hash)
+
+          type =
+            data[:event_type] || data["event_type"] ||
+            (event.is_a?(Hash) ? (event[:event_type] || event["event_type"] || event[:type] || event["type"]) : nil)
+
+          { type: type, data: data }
         end
 
         # Send batch to API

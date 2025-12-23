@@ -32,7 +32,16 @@ module ActiveRabbit
 
       def build_key(exception, context)
         top = Array(exception.backtrace).first.to_s
-        req_id = context[:request]&.[](:request_id) || context[:request_id] || context[:requestId]
+        ctx = context.is_a?(Hash) ? context : {}
+        req = ctx[:request] || ctx["request"]
+        req_hash = req.is_a?(Hash) ? req : {}
+
+        req_id =
+          req_hash[:request_id] || req_hash["request_id"] ||
+          req_hash[:requestId] || req_hash["requestId"] ||
+          ctx[:request_id] || ctx["request_id"] ||
+          ctx[:requestId] || ctx["requestId"]
+
         [exception.class.name, top, req_id].join("|")
       end
     end

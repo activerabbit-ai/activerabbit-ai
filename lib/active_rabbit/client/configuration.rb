@@ -20,7 +20,7 @@ module ActiveRabbit
       attr_accessor :disable_console_logs
 
       def initialize
-        @api_url = ENV.fetch("ACTIVERABBIT_API_URL", "https://api.activerabbit.ai")
+        @api_url = ENV.fetch("ACTIVERABBIT_API_URL", "https://app.activerabbit.ai")
         @api_key = ENV["ACTIVERABBIT_API_KEY"]
         @project_id = ENV["ACTIVERABBIT_PROJECT_ID"]
         @environment = ENV["ACTIVERABBIT_ENVIRONMENT"] || detect_environment

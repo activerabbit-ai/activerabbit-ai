@@ -5,7 +5,7 @@ RSpec.describe ActiveRabbit::Client::Configuration do
 
   describe "#initialize" do
     it "sets default values" do
-      expect(config.api_url).to eq("https://api.activerabbit.ai")
+      expect(config.api_url).to eq("https://app.activerabbit.ai")
       expect(config.timeout).to eq(30)
       expect(config.open_timeout).to eq(10)
       expect(config.retry_count).to eq(3)
@@ -24,7 +24,7 @@ RSpec.describe ActiveRabbit::Client::Configuration do
       allow(ENV).to receive(:[]).with("ACTIVERABBIT_PROJECT_ID").and_return("env-project-id")
       allow(ENV).to receive(:[]).with("ACTIVERABBIT_ENVIRONMENT").and_return("env-environment")
       allow(ENV).to receive(:fetch).and_call_original
-      allow(ENV).to receive(:fetch).with("ACTIVERABBIT_API_URL", "https://api.activerabbit.ai").and_return("https://custom-api.com")
+      allow(ENV).to receive(:fetch).with("ACTIVERABBIT_API_URL", "https://app.activerabbit.ai").and_return("https://custom-api.com")
 
       config = described_class.new
 
