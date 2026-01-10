@@ -156,16 +156,30 @@ module ActiveRabbit
         def in_app_frame?(file)
           return false if blank?(file)
 
-          # In-app if it's in app/, lib/, or similar app directories
-          # and NOT in gems or ruby stdlib
-          (file.start_with?("app/") ||
-           file.start_with?("lib/") ||
-           file.start_with?("config/") ||
-           (file.include?("/app/") && !file.include?("/gems/"))) &&
-            !file.include?("/gems/") &&
-            !file.include?("/ruby/") &&
-            !file.include?("/rubygems/") &&
-            !file.include?("/.bundle/")
+          # Exclude gem/library paths first (these are never in-app)
+          return false if file.include?("/gems/")
+          return false if file.include?("/bundle/")
+          return false if file.include?("/.bundle/")
+          return false if file.include?("/rubygems/")
+          # Exclude Ruby stdlib but not app paths that happen to have "ruby" in them
+          return false if file =~ %r{/ruby/\d+\.\d+\.\d+/}
+
+          # In-app patterns (common Rails app structures)
+          # Relative paths
+          return true if file.start_with?("app/")
+          return true if file.start_with?("lib/")
+          return true if file.start_with?("config/")
+
+          # Absolute paths in Docker/production (e.g., /app/app/controllers/...)
+          # Match paths that contain /app/ followed by typical app directories
+          return true if file =~ %r{/app/(controllers|models|services|jobs|views|helpers|mailers|workers|channels)/}
+          return true if file =~ %r{/lib/[^/]+\.rb$}
+          return true if file =~ %r{/config/}
+
+          # Generic: path contains /app/ but not in excluded paths (already checked above)
+          return true if file.include?("/app/") && file.end_with?(".rb")
+
+          false
         end
 
         def classify_frame(file)

@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.1] - 2026-01-09
+
+### Fixed
+- **Docker/Production path detection**: Fixed `in_app_frame?` to correctly detect app frames in Docker containers and production environments with absolute paths like `/app/app/controllers/...`
+
 ## [0.6.0] - 2026-01-09
 
 ### Added
