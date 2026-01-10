@@ -2,11 +2,15 @@
 
 require "digest"
 require "time"
+require_relative "source_code_reader"
 
 module ActiveRabbit
   module Client
     class ExceptionTracker
       attr_reader :configuration, :http_client
+
+      # Number of context lines to capture around error line
+      SOURCE_CONTEXT_LINES = 5
 
       def initialize(configuration, http_client)
         @configuration = configuration
@@ -77,8 +81,16 @@ module ActiveRabbit
       end
 
       def build_exception_data(exception:, context:, user_id:, tags:, handled: nil)
-        parsed_bt = parse_backtrace(exception.backtrace || [])
-        backtrace_lines = parsed_bt.map { |frame| frame[:line] }
+        raw_backtrace = exception.backtrace || []
+
+        # Parse backtrace with source code context (Sentry-style)
+        structured_frames = SourceCodeReader.parse_backtrace_with_source(
+          raw_backtrace,
+          context_lines: SOURCE_CONTEXT_LINES
+        )
+
+        # Keep simple backtrace lines for backward compatibility
+        backtrace_lines = raw_backtrace
 
         # Fallback: synthesize a helpful frame for routing errors with no backtrace
         if backtrace_lines.empty?
@@ -90,8 +102,23 @@ module ActiveRabbit
             path = $2
             synthetic = "#{defined?(Rails) && Rails.respond_to?(:root) ? Rails.root : 'app'}/config/routes.rb:1:in `route_not_found' for #{path}"
           end
-          backtrace_lines = [synthetic] if synthetic
+          if synthetic
+            backtrace_lines = [synthetic]
+            structured_frames = [{
+              file: "config/routes.rb",
+              line: 1,
+              method: "route_not_found",
+              raw: synthetic,
+              in_app: true,
+              frame_type: :other,
+              index: 0,
+              source_context: nil
+            }]
+          end
         end
+
+        # Find culprit frame (first in-app frame)
+        culprit_frame = structured_frames.find { |f| f[:in_app] }
 
         # Build data in the format the API expects
         data = {
@@ -99,6 +126,10 @@ module ActiveRabbit
           exception_class: exception.class.name,
           message: exception.message,
           backtrace: backtrace_lines,
+
+          # Structured stack frames with source context (Sentry-style)
+          structured_stack_trace: structured_frames,
+          culprit_frame: culprit_frame,
 
           # Timing and environment
           occurred_at: Time.now.iso8601(3),
@@ -150,6 +181,7 @@ module ActiveRabbit
         # Log what we're sending
         log(:debug, "[ActiveRabbit] Built exception data:")
         log(:debug, "[ActiveRabbit] - Required fields: class=#{data[:exception_class]}, message=#{data[:message]}, backtrace=#{data[:backtrace]&.first}")
+        log(:debug, "[ActiveRabbit] - Structured frames: #{structured_frames.count} total, #{structured_frames.count { |f| f[:in_app] }} in-app")
         log(:debug, "[ActiveRabbit] - Error details: type=#{data[:error_type]}, source=#{data[:error_source]}, component=#{data[:error_component]}")
         log(:debug, "[ActiveRabbit] - Request info: path=#{data[:request_path]}, method=#{data[:request_method]}, action=#{data[:controller_action]}")
 
@@ -199,7 +231,8 @@ module ActiveRabbit
 
         # Take the first few frames from the application (not gems/stdlib)
         app_frames = backtrace
-          .select { |line| line.include?(Dir.pwd) } # Only app files
+          .compact # Remove any nil entries
+          .select { |line| line.is_a?(String) && line.include?(Dir.pwd) } # Only app files
           .first(3) # First 3 frames
           .map { |line| line.gsub(/:\d+/, ":LINE") } # Remove line numbers
 
