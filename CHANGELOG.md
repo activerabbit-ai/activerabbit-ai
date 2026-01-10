@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-01-09
+
+### Added
+- **Sentry-style Stack Traces**: Full source code context captured at error time
+  - New `SourceCodeReader` class captures 5 lines before/after each error line
+  - `structured_stack_trace` field with rich frame data (file, line, method, in_app, frame_type, source_context)
+  - `culprit_frame` identifies the first in-app frame where error occurred
+  - Frame classification: controller, model, service, job, view, helper, mailer, concern, library, gem
+- **Comprehensive Test Coverage**: 34 new tests for source code reader and exception tracker
+
+### Fixed
+- **Nil backtrace handling**: Fixed `undefined method 'include?' for nil:NilClass` when backtrace contains nil entries
+
 ## [0.5.2] - 2025-12-22
 
 ### Fixed
