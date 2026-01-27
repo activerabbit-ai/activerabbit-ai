@@ -14,7 +14,8 @@ module ActiveRabbit
           ActiveRabbit::Client.track_event(
             "email_sent",
             {
-              mailer: self.class.name,
+              mailer_class: @mailer_class.name,
+              action: @action,
               message_id: (message.message_id rescue nil),
               subject: (message.subject rescue nil),
               to: (Array(message.to).first rescue nil),
@@ -24,11 +25,26 @@ module ActiveRabbit
         end
       end
 
-      def deliver_later
-        ActiveRabbit::Client.track_event(
-          "email_enqueued",
-          { mailer: self.class.name, subject: (message.subject rescue nil), to: (Array(message.to).first rescue nil) }
-        ) if ActiveRabbit::Client.configured?
+      def deliver_later(...)
+        # IMPORTANT: Do NOT access `message` here!
+        # Rails raises RuntimeError if you access the message before deliver_later
+        # because only mailer method arguments are passed to the job.
+        # We can only safely access metadata that doesn't touch the message object.
+        if ActiveRabbit::Client.configured?
+          begin
+            ActiveRabbit::Client.track_event(
+              "email_enqueued",
+              {
+                mailer_class: @mailer_class.name,
+                action: @action,
+                args: @args&.map { |a| a.class.name }
+              }
+            )
+          rescue => e
+            # Don't let tracking failures break email delivery
+            Rails.logger.error "[ActiveRabbit] Failed to track email_enqueued: #{e.message}" if defined?(Rails) && Rails.logger
+          end
+        end
         super
       end
     end
