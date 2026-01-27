@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.2] - 2026-01-26
+
+### Fixed
+- **ActionMailer deliver_later RuntimeError**: Fixed critical bug where `deliver_later` would raise `RuntimeError: You've accessed the message before asking to deliver it later`
+  - The patch was incorrectly accessing `message.subject` and `message.to` before calling `super`
+  - Rails requires that `message` is NOT accessed before `deliver_later` because only mailer method arguments are passed to the job
+  - Now only tracks safe metadata: `@mailer_class`, `@action`, and argument types
+  - Added error handling to ensure tracking failures don't break email delivery
+
+### Added
+- **ActionMailer patch tests**: 18 comprehensive tests for the ActionMailer integration
+  - Verifies `deliver_later` does NOT access the message object
+  - Verifies `deliver_now` correctly tracks message details
+  - Tests error handling and edge cases
+
 ## [0.6.1] - 2026-01-09
 
 ### Fixed
