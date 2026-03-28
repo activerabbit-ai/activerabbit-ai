@@ -140,6 +140,12 @@ module ActiveRabbit
         { success: false, error: e.message }
       end
 
+      # Cron / heartbeat check-in (project token + monitor slug). Synchronous, not batched.
+      def post_cron_check_in(slug:, status: :ok)
+        payload = stringify_and_sanitize({ slug: slug.to_s, status: status.to_s })
+        make_request(:post, "/api/v1/cron/check_ins", payload)
+      end
+
       def flush
         return if @request_queue.empty?
 

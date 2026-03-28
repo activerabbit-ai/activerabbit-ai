@@ -24,6 +24,12 @@ rescue LoadError
   # Sidekiq not available, skip integration
 end
 
+# Active Job cron monitors (optional)
+begin
+  require_relative "client/cron_monitor" if defined?(ActiveJob)
+rescue LoadError
+end
+
 module ActiveRabbit
   module Client
     class Error < StandardError; end
@@ -142,6 +148,19 @@ module ActiveRabbit
         }
 
         http_client.post_release(payload)
+      end
+
+      # Cron / heartbeat monitor (uses project API token + slug). Status: :ok, :success, :in_progress, :error.
+      def capture_cron_check_in(slug, status = :ok)
+        return unless configured?
+
+        s = slug.to_s.strip
+        return nil if s.empty?
+
+        http_client.post_cron_check_in(slug: s, status: status)
+      rescue => e
+        log(:error, "[ActiveRabbit] capture_cron_check_in failed: #{e.class}: #{e.message}")
+        nil
       end
 
       def log(level, message)

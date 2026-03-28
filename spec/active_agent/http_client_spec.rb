@@ -108,6 +108,26 @@ RSpec.describe ActiveRabbit::Client::HttpClient do
     end
   end
 
+  describe "#post_cron_check_in" do
+    it "POSTs slug and status as JSON with project headers" do
+      stub_request(:post, "https://api.example.com/api/v1/cron/check_ins")
+        .with(
+          headers: {
+            "Content-Type" => "application/json",
+            "Accept" => "application/json",
+            "User-Agent" => "ActiveRabbit-Client/#{ActiveRabbit::Client::VERSION}",
+            "X-Project-Token" => "test-api-key",
+            "X-Project-ID" => "test-project"
+          },
+          body: '{"slug":"nightly_backup","status":"ok"}'
+        )
+        .to_return(status: 200, body: '{"status":"ok"}', headers: { "Content-Type" => "application/json" })
+
+      result = http_client.post_cron_check_in(slug: "nightly_backup", status: :ok)
+      expect(result).to eq({ "status" => "ok" })
+    end
+  end
+
   describe "#make_request" do
     context "successful request" do
       it "makes HTTP request with proper headers" do
