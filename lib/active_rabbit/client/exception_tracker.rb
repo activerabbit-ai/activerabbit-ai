@@ -131,6 +131,9 @@ module ActiveRabbit
           structured_stack_trace: structured_frames,
           culprit_frame: culprit_frame,
 
+          # Error source: backend (Ruby gem) vs frontend (JS SDK)
+          source: "backend",
+
           # Timing and environment
           occurred_at: Time.now.iso8601(3),
           environment: configuration.environment || 'development',
