@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.3] - 2026-03-30
+
+### Added
+- **HTTP client request id**: `make_request` sends a stable `X-Request-Id` header (same value across retries) so APIs can correlate or deduplicate requests after timeouts and transient failures.
+- **Explicit `securerandom` load**: `HttpClient` requires `securerandom` so `SecureRandom` is always available regardless of load order.
+
 ## [0.6.2] - 2026-01-26
 
 ### Fixed
