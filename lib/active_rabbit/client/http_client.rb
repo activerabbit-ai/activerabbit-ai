@@ -6,6 +6,7 @@ require "json"
 require "concurrent"
 require "time"
 require "uri"
+require "securerandom"
 
 module ActiveRabbit
   module Client
@@ -231,12 +232,16 @@ module ActiveRabbit
         log(:debug, "[ActiveRabbit] Request headers: X-Project-Token=#{configuration.api_key}, X-Project-ID=#{configuration.project_id}")
         log(:debug, "[ActiveRabbit] Request body: #{safe_preview(data)}")
 
+        # Generate a stable request ID for dedup — same ID is reused across retries
+        # so the server can reject duplicates when we retry after a timeout.
+        request_id = SecureRandom.uuid
+
         # Retry logic with exponential backoff
         retries = 0
         max_retries = configuration.retry_count
 
         begin
-          response = perform_request(uri, method, data)
+          response = perform_request(uri, method, data, request_id: request_id)
           log(:info, "[ActiveRabbit] Response status: #{response.code}")
           log(:debug, "[ActiveRabbit] Response headers: #{response.to_hash.inspect}")
           log(:debug, "[ActiveRabbit] Response body: #{response.body}")
@@ -279,7 +284,7 @@ module ActiveRabbit
         end
       end
 
-      def perform_request(uri, method, data)
+      def perform_request(uri, method, data, request_id: nil)
         log(:debug, "[ActiveRabbit] Making HTTP request: #{method.upcase} #{uri}")
         http = Net::HTTP.new(uri.host, uri.port)
 
@@ -314,6 +319,7 @@ module ActiveRabbit
         request['Accept'] = 'application/json'
         request['User-Agent'] = "ActiveRabbit-Client/#{ActiveRabbit::Client::VERSION}"
         request['X-Project-Token'] = configuration.api_key
+        request['X-Request-Id'] = request_id if request_id
 
         if configuration.project_id
           request['X-Project-ID'] = configuration.project_id
