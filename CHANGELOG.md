@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.4] - 2026-04-01
+
+### Added
+- **Log forwarding**: New `LogForwarder` buffers Rails log lines and sends them in batches to `POST /api/v1/logs`. Enable with `config.enable_logs = true` in the ActiveRabbit initializer.
+- **Configuration**: `logs_flush_interval`, `logs_batch_size`, and optional `logs_source` for tuning batching and labeling forwarded logs.
+- **Rails integration**: Railtie registers the forwarder with `ActiveSupport::BroadcastLogger` so `Rails.logger` output is forwarded without changing application code. Flush/shutdown hooks keep the forwarder aligned with the app lifecycle.
+
 ## [0.6.3] - 2026-03-30
 
 ### Added
