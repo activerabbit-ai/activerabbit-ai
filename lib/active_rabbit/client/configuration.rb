@@ -11,6 +11,7 @@ module ActiveRabbit
       attr_accessor :batch_size, :flush_interval, :queue_size
       attr_accessor :enable_performance_monitoring, :enable_n_plus_one_detection
       attr_accessor :enable_pii_scrubbing, :pii_fields
+      attr_accessor :enable_logs, :logs_flush_interval, :logs_batch_size, :logs_source
       attr_accessor :ignored_exceptions, :ignored_user_agents, :ignore_404
       attr_accessor :release, :server_name, :logger
       attr_accessor :before_send_event, :before_send_exception
@@ -40,7 +41,13 @@ module ActiveRabbit
         @enable_performance_monitoring = true
         @enable_n_plus_one_detection = true
         @enable_pii_scrubbing = true
+        @enable_logs = false
         @disable_console_logs = true
+
+        # Log forwarding
+        @logs_flush_interval = 5
+        @logs_batch_size = 100
+        @logs_source = nil
 
         # PII scrubbing
         @pii_fields = %w[

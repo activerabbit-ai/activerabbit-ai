@@ -9,6 +9,7 @@ require_relative "client/performance_monitor"
 require_relative "client/n_plus_one_detector"
 require_relative "client/pii_scrubber"
 require_relative "client/error_reporter"
+require_relative "client/log_forwarder"
 
 # Rails integration (optional)
 begin
@@ -117,6 +118,7 @@ module ActiveRabbit
         event_processor.flush
         exception_tracker.flush
         performance_monitor.flush
+        @log_forwarder&.flush
       end
 
       # Shutdown the client gracefully
@@ -124,8 +126,15 @@ module ActiveRabbit
         return unless configured?
 
         flush
+        @log_forwarder&.stop
         event_processor.shutdown
         http_client.shutdown
+      end
+
+      # Returns the LogForwarder instance (created on first access when enabled).
+      def log_forwarder
+        return nil unless configuration&.enable_logs
+        @log_forwarder ||= LogForwarder.new(configuration)
       end
 
       # Manual capture convenience for non-Rails contexts
