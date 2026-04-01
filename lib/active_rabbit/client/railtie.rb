@@ -325,6 +325,25 @@ module ActiveRabbit
         ar_log(:info, "[ActiveRabbit] Middleware configured successfully")
       end
 
+      initializer "active_rabbit.log_forwarding", after: :initialize_logger do |app|
+        app.config.after_initialize do
+          cfg = ActiveRabbit::Client.configuration
+          next unless cfg&.enable_logs
+          next unless ActiveRabbit::Client.configured?
+
+          forwarder = ActiveRabbit::Client.log_forwarder
+          next unless forwarder
+
+          if Rails.logger.is_a?(ActiveSupport::BroadcastLogger)
+            Rails.logger.broadcast_to(forwarder)
+          else
+            Rails.logger = ActiveSupport::BroadcastLogger.new(Rails.logger, forwarder)
+          end
+
+          ar_log(:info, "[ActiveRabbit] Log forwarding enabled")
+        end
+      end
+
       initializer "active_rabbit.error_reporter" do |app|
         # DISABLED: Rails error reporter creates duplicate events because middleware already catches all errors
         # The middleware provides better context and catches errors at the right level
